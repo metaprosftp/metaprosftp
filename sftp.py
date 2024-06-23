@@ -223,7 +223,7 @@ def main():
             validation_key = st.text_input('License Key', type='password')
 
     # Check if validation key is correct
-    correct_key = "A1B2-C3D4-E5F6-G7H8"
+    correct_key = "31days"
 
     if not st.session_state['license_validated'] and validation_key:
         if validation_key == correct_key:
