@@ -61,7 +61,7 @@ def generate_metadata(model, img):
     caption = model.generate_content([
         "(Create a descriptive title in English up to 12 words long). "
         "avoid using brand names or copyrighted elements in the title. "
-        "descriptive title to ensure readability and ease of search. ", img
+        "identify the main elements of the image subject, activity, context, setting, concept , Capture the Essence, Include Relevant Elements, Emphasize Emotion, Contextual Detail, Be Descriptive. ", img
     ])
     tags = model.generate_content([
         "Generate up to 40 keywords that are relevant to the image (each keyword must be one word, separated by commas). "
