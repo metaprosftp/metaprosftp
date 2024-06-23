@@ -58,12 +58,14 @@ def normalize_text(text):
     return normalized
 
 # Function to generate metadata for images using AI model
-def generate_metadata(model, img, caption):
+def generate_metadata(model, img):
     caption = model.generate_content([
-        "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", img
+        "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", 
+        img
     ])
-  tags = model.generate_content([
-        "Generate up to 40 keywords that are relevant to the image (each keyword must be one word, separated by commas) of content details that can inspire specific, relevant keywords: Names of animal species, Names of cuisines, Types of clothing and hairstyles, Model and community-approved demographic characteristics describing race, ethnicity, cultural background, and more, Names of equipment or processes, Specific actions or event names, Demographic characteristics, Specific actions or event names, Contextual Elements, Identify Key Elements: Determine the main subjects and context of the image, Describe Concisely: Summarize the key elements in a short, descriptive phrase, Avoid Prohibited Content: Ensure no brand names, people's names, or potentially harmful language is included.",
+    
+    tags = model.generate_content([
+        "Generate up to 40 keywords that are relevant to the image (each keyword must be one word, separated by commas) of content details that can inspire specific, relevant keywords: Names of animal species, Names of cuisines, Types of clothing and hairstyles, Model and community-approved demographic characteristics describing race, ethnicity, cultural background, and more, Names of equipment or processes, Specific actions or event names, Demographic characteristics, Specific actions or event names, Contextual Elements, Identify Key Elements: Determine the main subjects and context of the image, Describe Concisely: Summarize the key elements in a short, descriptive phrase, Avoid Prohibited Content: Ensure no brand names, people's names, or potentially harmful language is included.", 
         img
     ])
     
