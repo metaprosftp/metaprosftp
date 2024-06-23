@@ -377,12 +377,5 @@ def main():
 
         """)
 
-    # Display logout button
-    if st.button("Logout"):
-        st.session_state['logged_in'] = False
-        set_lock("")
-        st.success("Logged out successfully.")
-        return
-
 if __name__ == '__main__':
     main()
