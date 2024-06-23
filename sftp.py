@@ -58,8 +58,8 @@ def normalize_text(text):
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
-    caption = model.generate_content(["(Generate a title in English with a length of up to 12 words) that are relevant to the image to identify the main elements (subject, activity, context), use relevant title for SEO optimization, avoid using brand names or copyrighted elements in the title, and craft a short, precise, and title to ensure readability and ease of search.", img])
-    tags = model.generate_content(["Generate up to 45 keywords in English that are relevant to the image (Ensure each keyword is a single word, separated by commas).", img])
+    caption = model.generate_content(["(Generate a title in English with a length of up to 12 words) that are relevant to the image to identify the main elements (subject, activity, context), use relevant keywords for SEO optimization, avoid using brand names or copyrighted elements in the title, and craft a short, precise, and descriptive title to ensure readability and ease of search.", img])
+    tags = model.generate_content(["( Generate up to 45 keywords in English that are relevant to the image Ensure each keyword is a single word, separated by commas ), use relevant keywords for SEO optimization, avoid using brand names or copyrighted elements in the keywords, and craft a short, precise, and descriptive title to ensure readability and ease of search.", img])
 
     # Filter out undesirable characters from the generated tags
     filtered_tags = re.sub(r'[^\w\s,]', '', tags.text)
