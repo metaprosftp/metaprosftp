@@ -58,19 +58,24 @@ def normalize_text(text):
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
-    caption = model.generate_content(["Generate a descriptive title in English up to 12 words long.", img])
-    tags = model.generate_content(["Generate up to 45 keywords in English that are relevant to the image (each keyword must be one word, separated by commas). Ensure each keyword is a single word, separated by commas.", img])
+    caption = model.generate_content(["Generate a descriptive title in English up to 12 words long, identifying the main elements of the image. Describe the primary subjects, objects, activities, and context. Refine the title to include relevant keywords for SEO and ensure it is engaging and informative, but avoid mentioning human names, brand names, product names, or company names.", img])
+    tags = model.generate_content(["Generate up to 45 keywords in English that are relevant to the image (each keyword must be one word, separated by commas).", img])
 
-    # Filter out undesirable characters from the generated tags
-    filtered_tags = re.sub(r'[^\w\s,]', '', tags.text)
+    # Extracting keywords and ensuring they are single words
+    keywords = re.findall(r'\w+', tags.text)
     
-    # Trim the generated keywords if they exceed 49 words
-    keywords = filtered_tags.split(',')[:49]  # Limit to 49 words
-    trimmed_tags = ','.join(keywords)
+    # Limiting keywords to 49 words
+    keywords = keywords[:49]
+
+    # Removing duplicates
+    unique_keywords = list(set(keywords))
+
+    # Joining keywords with commas
+    trimmed_tags = ','.join(unique_keywords)
     
     return {
-        'Title': caption.text.strip(),  # Remove leading/trailing whitespace
-        'Tags': trimmed_tags.strip()
+        'Title': normalize_text(caption.text.strip()),  # Normalize and strip leading/trailing whitespace from caption
+        'Tags': trimmed_tags.strip()  # Strip leading/trailing whitespace from tags
     }
     
 # Function to embed metadata into images
