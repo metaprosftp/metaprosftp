@@ -133,17 +133,6 @@ def sftp_upload(image_paths, sftp_password, progress_placeholder):
         sftp.close()
         transport.close()
 
-# Function to generate descriptive text for images using AI model
-def generate_description(model, img):
-    description = model.generate_content(["Generate a detailed description in English identifying the main elements of the image. Describe the primary subjects, objects, activities, and context. Ensure it is engaging and informative.", img])
-    return description.text.strip()
-
-# Function to convert description into MidJourney prompts
-def convert_to_midjourney_prompts(description):
-    sentences = description.split('.')
-    prompts = [sentence.strip() for sentence in sentences if sentence.strip()]
-    return prompts[:4]  # Limit to the first 4 prompts
-
 def main():
     """Main function for the Streamlit app."""
     
@@ -223,7 +212,7 @@ def main():
             validation_key = st.text_input('License Key', type='password')
 
     # Check if validation key is correct
-    correct_key = "31days"
+    correct_key = "A1B2-C3D4-E5F6-G7H8"
 
     if not st.session_state['license_validated'] and validation_key:
         if validation_key == correct_key:
@@ -342,31 +331,6 @@ def main():
                                 sftp_upload(processed_image_paths, sftp_password, progress_placeholder)
 
                                 st.success(f"Uploaded {len(processed_image_paths)} files to SFTP server.")
-
-                            # Generate descriptive text and MidJourney prompts
-                            prompt_texts = []
-                            for i, image_path in enumerate(image_paths):
-                                process_placeholder.text(f"Generating descriptive text and MidJourney prompts for image {i + 1}/{len(image_paths)}")
-                                try:
-                                    img = Image.open(image_path)
-                                    description = generate_description(model, img)
-                                    prompts = convert_to_midjourney_prompts(description)
-                                    prompt_texts.append({
-                                        'image': os.path.basename(image_path),
-                                        'prompts': prompts
-                                    })
-                                except Exception as e:
-                                    st.error(f"An error occurred while generating prompts for {os.path.basename(image_path)}: {e}")
-                                    st.error(traceback.format_exc())
-                                    continue
-
-                            # Display MidJourney prompts
-                            if prompt_texts:
-                                st.write("Generated MidJourney Prompts:")
-                                for prompt in prompt_texts:
-                                    st.write(f"**Image:** {prompt['image']}")
-                                    for p in prompt['prompts']:
-                                        st.write(f"- {p}")
 
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
