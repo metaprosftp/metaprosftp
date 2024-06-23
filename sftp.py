@@ -52,18 +52,23 @@ if 'api_key' not in st.session_state:
     st.session_state['api_key'] = None
 
 # Function to normalize and clean text
+# Function to normalize and clean text
 def normalize_text(text):
     normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
     return normalized
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
-    caption = model.generate_content(["Generate a descriptive title in English up to 12 words long, identifying the main elements of the image. Describe the primary subject, object, activity, context, setting, concept. Refine the title to include relevant keywords for SEO optimization and ensure it is engaging and informative, but avoid using brand names or copyrighted elements.", img])
+    # Generate caption and tags using the AI model
+    caption = model.generate_content([
+        "Generate a descriptive title in English up to 12 words long, identifying the main elements of the image. Describe the primary subject, object, activity, context, setting, concept. Refine the title to include relevant keywords for SEO optimization and ensure readability and ease of search, but avoid using brand names or copyrighted elements.", img])
+    
     tags = model.generate_content([
         "Generate up to 49 keywords that are relevant to the image (each keyword must be one word, separated by commas). "
-        "use relevant keywords for SEO optimization, avoid using brand names or copyrighted elements in the keywords. "
-        "each keyword must be one word, separated by commas.", img
+        "Use relevant keywords for SEO optimization, avoid using brand names or copyrighted elements in the keywords. "
+        "Each keyword must be one word, separated by commas.", img
     ])
+    
     # Filter out undesirable characters from the generated tags
     filtered_tags = re.sub(r'[^\w\s,]', '', tags.text)
     
@@ -71,15 +76,13 @@ def generate_metadata(model, img):
     keywords = filtered_tags.split(',')[:49]  # Limit to 49 words
     trimmed_tags = ','.join(keywords)
     
-    # Normalize title and tags
-    normalized_title = normalize_text(caption.text.strip())
+    # Normalize tags
     normalized_tags = normalize_text(trimmed_tags.strip())
     
     return {
-        'Title': normalized_title,  # Normalized and trimmed title
         'Tags': normalized_tags  # Normalized and trimmed tags
     }
-
+    
 # Function to embed metadata into images
 def embed_metadata(image_path, metadata, progress_bar, files_processed, total_files):
     try:
