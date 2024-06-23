@@ -75,15 +75,18 @@ def generate_metadata(model, img):
     # Converting keywords to lowercase
     keywords = [word.lower() for word in keywords]
     
-    # Limiting keywords to 49 words and removing duplicates
+   # Limiting keywords to 49 words and removing duplicates
     unique_keywords = list(set(keywords))[:49]
 
     # Joining keywords with commas
     trimmed_tags = ','.join(unique_keywords)
     
+    # Normalize tags
+    normalized_tags = normalize_text(trimmed_tags.strip())
+    
     return {
         'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
-        'Tags': trimmed_tags.strip()  # Strip leading/trailing whitespace from tags
+        'Tags': normalized_tags  # Normalized and trimmed tags
     }
     
 # Function to embed metadata into images
