@@ -75,9 +75,9 @@ def generate_metadata(model, img):
     # Joining keywords with commas
     trimmed_tags = ','.join(unique_keywords)
     
-    rreturn {
-    'Title': caption.text.strip(),  # strip leading/trailing whitespace from caption
-    'Tags': trimmed_tags.strip()  # Strip leading/trailing whitespace from tags
+    return {
+        'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
+        'Tags': trimmed_tags.strip()  # Strip leading/trailing whitespace from tags
     }
     
 # Function to embed metadata into images
