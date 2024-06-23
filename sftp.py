@@ -76,7 +76,7 @@ def generate_metadata(model, img):
     trimmed_tags = ','.join(unique_keywords)
     
     return {
-        'Title': normalize_text(caption.text.strip()),  # Normalize and strip leading/trailing whitespace from caption
+        'Title': caption.text.strip()),  # Normalize and strip leading/trailing whitespace from caption
         'Tags': trimmed_tags.strip()  # Strip leading/trailing whitespace from tags
     }
     
