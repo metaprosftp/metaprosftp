@@ -65,7 +65,7 @@ def generate_metadata(model, img):
     ])
     
     tags = model.generate_content([
-        "Generate up to 40 keywords relevant to the image, starting with the main subject and incorporating descriptive details such as age, gender, ethnicity, and activity for people, or type of landscape, scenery details, and weather for landscapes. Include Names of animal species (e.g., lion, eagle), Names of cuisines (e.g., Italian, sushi), Types of clothing and hairstyles (e.g., kimono, braids), Model and community-approved demographic characteristics describing race, ethnicity, cultural background, and more (e.g., Asian, Hispanic), Names of equipment or processes (e.g., camera, cooking), Specific actions or event names (e.g., hiking, celebration). Ensure keywords reflect themes, emotions, or concepts conveyed by the image while strictly avoiding brand names, people's names, or potentially harmful language.", 
+        "Generate up to 49 keywords relevant to the image, starting with the main subject and incorporating descriptive details such as age, gender, ethnicity, and activity for people, or type of landscape, scenery details, and weather for landscapes. Include animal species, cuisines, clothing and hairstyles, demographic characteristics, equipment or processes, specific actions or event names. Ensure keywords reflect themes, emotions, or concepts conveyed by the image while strictly avoiding brand names, people's names, or potentially harmful language.", 
         img
     ])
     
@@ -75,8 +75,8 @@ def generate_metadata(model, img):
     # Converting keywords to lowercase
     keywords = [word.lower() for word in keywords]
     
-    # Limiting keywords to 40 words and removing duplicates
-    unique_keywords = list(set(keywords))[:40]
+    # Limiting keywords to 49 words and removing duplicates
+    unique_keywords = list(set(keywords))[:49]
 
     # Joining keywords with commas
     trimmed_tags = ','.join(unique_keywords)
