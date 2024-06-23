@@ -12,6 +12,7 @@ import unicodedata
 from datetime import datetime, timedelta
 import pytz
 import json
+import unicodedata
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -62,17 +63,14 @@ def generate_metadata(model, img):
         "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", img
     ])
     tags = model.generate_content([
-        "Generate up to 40 keywords that are relevant to the image (each keyword must be one word, separated by commas) of content details that can inspire specific, relevant keywords: Names of animal species, Names of cuisines, Types of clothing and hairstyles, Model and community-approved demographic characteristics describing race, ethnicity, cultural background, and more, Names of equipment or processes, Specific actions or event names, Identify Key Elements: Determine the main subjects and context of the image, Describe Concisely: Summarize the key elements in a short, descriptive phrase, Avoid Prohibited Content: Ensure no brand names, people's names, or potentially harmful language is included .", img
+        "Generate up to 40 keywords that are relevant to the image (each keyword must be one word, separated by commas) of content details that can inspire specific, relevant keywords: Names of animal species, Names of cuisines, Types of clothing and hairstyles, Model and community-approved demographic characteristics describing race, ethnicity, cultural background, and more, Names of equipment or processes, Specific actions or event names, Identify Key Elements: Determine the main subjects and context of the image, Describe Concisely: Summarize the key elements in a short, descriptive phrase, Avoid Prohibited Content: Ensure no brand names, people's names, or potentially harmful language is included.", img
     ])
     
     # Extracting keywords and ensuring they are single words
     keywords = re.findall(r'\w+', tags.text)
     
-    # Limiting keywords to 49 words
-    keywords = keywords[:49]
-
-    # Removing duplicates
-    unique_keywords = list(set(keywords))
+    # Limiting keywords to 40 words and removing duplicates
+    unique_keywords = list(set(keywords))[:40]
 
     # Joining keywords with commas
     trimmed_tags = ','.join(unique_keywords)
