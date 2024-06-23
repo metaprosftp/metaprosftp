@@ -65,7 +65,7 @@ def generate_metadata(model, img):
     ])
     
     tags = model.generate_content([
-        "Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). improved keywords is more engaging, specific, and incorporates relevant keywords while maintaining clarity and conciseness. includes Subject or Object, Description or Type, Context or Category, Specific actions or event names, Contextual Elements, Emotion or Mood, Cultural or Social Relevance,Avoid using brand names or copyrighted elements in the keywords.", 
+        "Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.", 
         img
     ])
     
