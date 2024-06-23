@@ -68,9 +68,13 @@ def generate_metadata(model, img):
     keywords = filtered_tags.split(',')[:49]  # Limit to 49 words
     trimmed_tags = ','.join(keywords)
     
+    # Normalize title and tags
+    normalized_title = normalize_text(caption.text.strip())
+    normalized_tags = normalize_text(trimmed_tags.strip())
+    
     return {
-        'Title': caption.text.strip(),  # Remove leading/trailing whitespace
-        'Tags': trimmed_tags.strip()
+        'Title': normalized_title,  # Normalized and trimmed title
+        'Tags': normalized_tags  # Normalized and trimmed tags
     }
 
 # Function to embed metadata into images
