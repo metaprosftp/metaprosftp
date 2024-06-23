@@ -334,7 +334,7 @@ def main():
                                 st.write("Uploading processed images via SFTP...")
                                 sftp_upload(processed_image_paths, sftp_password, progress_placeholder)
 
-                                st.success(f"Uploaded {len(processed_image_paths)} files to SFTP server.")
+                                st.success(f"Successfully transferred {len(processed_image_paths)} files to the SFTP server.")
 
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
