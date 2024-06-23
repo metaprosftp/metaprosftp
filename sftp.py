@@ -65,7 +65,7 @@ def generate_metadata(model, img):
     ])
     
     tags = model.generate_content([
-        "Generate up to 49 keywords relevant to the image, starting with the main subject and incorporating descriptive details such as age, gender, ethnicity, and activity for people, or type of landscape, scenery details, and weather for landscapes. Include animal species, cuisines, clothing and hairstyles, demographic characteristics, equipment or processes, specific actions or event names. Ensure keywords reflect themes, emotions, or concepts conveyed by the image while strictly avoiding brand names, people's names, or potentially harmful language.", 
+        "Generate up to 49 keywords relevant to the image, Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the keywords.", 
         img
     ])
     
