@@ -52,12 +52,6 @@ if 'upload_count' not in st.session_state:
 if 'api_key' not in st.session_state:
     st.session_state['api_key'] = None
 
-if 'title_prompt' not in st.session_state:
-    st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
-
-if 'tags_prompt' not in st.session_state:
-    st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.")
-
 # Function to normalize and clean text
 def normalize_text(text):
     normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
@@ -65,12 +59,16 @@ def normalize_text(text):
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
-    title_prompt = st.session_state['title_prompt']
-    tags_prompt = st.session_state['tags_prompt']
-
-    caption = model.generate_content([title_prompt, img])
-    tags = model.generate_content([tags_prompt, img])
-
+    caption = model.generate_content([
+        "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", 
+        img
+    ])
+    
+    tags = model.generate_content([
+        "Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.", 
+        img
+    ])
+    
     # Extracting keywords and ensuring they are single words
     keywords = re.findall(r'\w+', tags.text)
     
@@ -90,7 +88,7 @@ def generate_metadata(model, img):
         'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
         'Tags': normalized_tags  # Normalized and trimmed tags
     }
-
+    
 # Function to embed metadata into images
 def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
     try:
@@ -116,7 +114,7 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
 
         # Update progress text
         files_processed += 1
-        progress_placeholder.text(f"Processing images to generate titles, tags, and embed metadata {files_processed}/{total_files}")
+        progress_placeholder.text(f"Embedding metadata for image {files_processed}/{total_files}")
 
         # Return the updated image path for further processing
         return image_path
@@ -139,7 +137,7 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
     try:
         filename = os.path.basename(image_path)
         sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
-        progress_placeholder.text(f"Uploaded {files_processed + 1}/{total_files} files to SFTP server.")
+        progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
@@ -196,6 +194,25 @@ def main():
     if st.button("About"):
         st.markdown("""
         ### Why Choose MetaPro?
+
+        **AI-Powered Precision:** Leverage the power of Google Generative AI to automatically generate highly relevant and descriptive titles and tags for your images. Enhance your image metadata with unprecedented accuracy and relevance.
+
+        **Streamlined Workflow:** Upload your images in just a few clicks. Our app processes each photo, embeds the generated metadata, and prepares it for upload—automatically and effortlessly.
+
+        **Secure and Efficient Gdrive Upload:** Once processed, your images are securely uploaded to gdrive. Keep your workflow smooth and your data safe with our robust upload system.
+
+        *How It Works:*
+        1. Upload Your Images: Drag and drop your JPG/JPEG files into the uploader.
+        2. Generate Metadata: Watch as the app uses AI to create descriptive titles and relevant tags.
+        3. Embed Metadata: The app embeds the metadata directly into your images.
+        4. Directly upload to Google Drive for faster downloads.
+        
+        **Subscribe Now and Experience the Difference:**
+        - **MetaPro Basic Plan: $10 for 3 months – Upload up to 1,000 images daily.
+        - **MetaPro Premium Plan: $40 for unlimited image uploads for a lifetime.
+
+        Ready to revolutionize your workflow? Subscribe today and take the first step towards a smarter, more efficient image management solution.
+
         """)
 
     # Check logout at the end
@@ -264,21 +281,13 @@ def main():
 
         # API Key input
         api_key = st.text_input('Enter your API Key', value=st.session_state['api_key'] or '')
-
+        
         # Save API key in session state
         if api_key:
             st.session_state['api_key'] = api_key
-
+            
         # SFTP Password input
         sftp_password = st.text_input('SFTP Password', type='password')   
-
-        # Title and tags prompts input
-        title_prompt = st.text_area('Title Prompt', value=st.session_state['title_prompt'], height=100)
-        tags_prompt = st.text_area('Tags Prompt', value=st.session_state['tags_prompt'], height=100)
-
-        # Save prompts in session state
-        st.session_state['title_prompt'] = title_prompt
-        st.session_state['tags_prompt'] = tags_prompt
 
         # Upload image files
         uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
@@ -299,7 +308,7 @@ def main():
                                 'date': current_date.date(),
                                 'count': 0
                             }
-
+                        
                         # Check if remaining uploads are available
                         if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
                             remaining_uploads = 1000 - st.session_state['upload_count']['count']
@@ -325,14 +334,19 @@ def main():
                             total_files = len(image_paths)
                             files_processed = 0
 
-                            # Progress placeholder for embedding metadata
+			    # Progress placeholder for embedding metadata
                             embed_progress_placeholder = st.empty()
                             # Progress placeholder for SFTP upload
                             upload_progress_placeholder = st.empty()
 
+
                             # Process each image one by one
                             for image_path in image_paths:
                                 try:
+                                    # Update progress text
+                                    progress_placeholder = st.empty()
+                                    progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
+
                                     # Open image
                                     img = Image.open(image_path)
 
@@ -340,11 +354,11 @@ def main():
                                     metadata = generate_metadata(model, img)
 
                                     # Embed metadata
-                                    updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
+                                    updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
                                     
                                     # Upload via SFTP
                                     if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_password, upload_progress_placeholder, files_processed, total_files)
+                                        sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
                                         files_processed += 1
 
                                 except Exception as e:
