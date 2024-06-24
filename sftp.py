@@ -137,7 +137,6 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
     try:
         filename = os.path.basename(image_path)
         sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
-        progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
@@ -340,7 +339,7 @@ def main():
                                     # Update progress text
                                     progress_placeholder = st.empty()
                                     progress_placeholder.text(f"Processing image Generate Title & Tags {files_processed + 1}/{total_files}")
-
+                                    progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
                                     # Open image
                                     img = Image.open(image_path)
 
