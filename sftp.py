@@ -12,6 +12,7 @@ import unicodedata
 from datetime import datetime, timedelta
 import pytz
 import json
+import unicodedata
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -344,13 +345,6 @@ def main():
                                     if updated_image_path:
                                         sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
                                         files_processed += 1
-
-                                        # Generate and display thumbnail with metadata
-                                        thumbnail = img.copy()
-                                        thumbnail.thumbnail((150, 150))
-                                        st.image(thumbnail, caption=f"Title: {metadata['Title']}\nTags: {metadata['Tags']}")
-                                        st.write(f"Title: {metadata['Title']}")
-                                        st.write(f"Tags: {metadata['Tags']}")
 
                                 except Exception as e:
                                     st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
