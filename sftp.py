@@ -1,153 +1,3 @@
-import streamlit as st
-import os
-import tempfile
-from PIL import Image
-import google.generativeai as genai
-import iptcinfo3
-import zipfile
-import time
-import traceback
-import re
-import unicodedata
-from datetime import datetime, timedelta
-import pytz
-import json
-import unicodedata
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-import paramiko
-
-# Set the timezone to UTC+7 Jakarta
-JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
-
-# Function to check if lock file exists and its content
-def check_lock():
-    lock_file = "lock.txt"
-    if os.path.exists(lock_file):
-        with open(lock_file, 'r') as file:
-            content = file.read().strip()
-            return content == "logged_in"
-    return False
-
-# Function to set lock file
-def set_lock(status):
-    lock_file = "lock.txt"
-    with open(lock_file, 'w') as file:
-        file.write(status)
-
-# Initialize session state for login and license validation
-if 'logged_in' not in st.session_state:
-    st.session_state['logged_in'] = False
-
-if 'license_validated' not in st.session_state:
-    st.session_state['license_validated'] = False
-
-if 'upload_count' not in st.session_state:
-    st.session_state['upload_count'] = {
-        'date': None,
-        'count': 0
-    }
-
-if 'api_key' not in st.session_state:
-    st.session_state['api_key'] = None
-
-# Function to normalize and clean text
-def normalize_text(text):
-    normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
-    return normalized
-
-# Function to generate metadata for images using AI model
-def generate_metadata(model, img):
-    caption = model.generate_content([
-        "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", 
-        img
-    ])
-    
-    tags = model.generate_content([
-        "Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.", 
-        img
-    ])
-    
-    # Extracting keywords and ensuring they are single words
-    keywords = re.findall(r'\w+', tags.text)
-    
-    # Converting keywords to lowercase
-    keywords = [word.lower() for word in keywords]
-    
-    # Limiting keywords to 49 words and removing duplicates
-    unique_keywords = list(set(keywords))[:49]
-
-    # Joining keywords with commas
-    trimmed_tags = ','.join(unique_keywords)
-    
-    # Normalize tags
-    normalized_tags = normalize_text(trimmed_tags.strip())
-    
-    return {
-        'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
-        'Tags': normalized_tags  # Normalized and trimmed tags
-    }
-    
-# Function to embed metadata into images
-def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
-    try:
-        # Simulate delay
-        time.sleep(1)
-
-        # Open the image file
-        img = Image.open(image_path)
-
-        # Load existing IPTC data (if any)
-        iptc_data = iptcinfo3.IPTCInfo(image_path, force=True)
-
-        # Clear existing IPTC metadata
-        for tag in iptc_data._data:
-            iptc_data._data[tag] = []
-
-        # Update IPTC data with new metadata
-        iptc_data['keywords'] = [metadata.get('Tags', '')]  # Keywords
-        iptc_data['caption/abstract'] = [metadata.get('Title', '')]  # Title
-
-        # Save the image with the embedded metadata
-        iptc_data.save()
-
-        # Update progress text
-        files_processed += 1
-        progress_placeholder.text(f"Embedding metadata for image {files_processed}/{total_files}")
-
-        # Return the updated image path for further processing
-        return image_path
-
-    except Exception as e:
-        st.error(f"An error occurred while embedding metadata: {e}")
-        st.error(traceback.format_exc())  # Print detailed error traceback for debugging
-
-def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed, total_files):
-    # SFTP connection details
-    sftp_host = "sftp.contributor.adobestock.com"
-    sftp_port = 22
-    sftp_username = "209940897"
-
-    # Initialize SFTP connection
-    transport = paramiko.Transport((sftp_host, sftp_port))
-    transport.connect(username=sftp_username, password=sftp_password)
-    sftp = paramiko.SFTPClient.from_transport(transport)
-
-    try:
-        filename = os.path.basename(image_path)
-        sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
-        files_processed += 1
-        progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
-
-    except Exception as e:
-        st.error(f"Error during SFTP upload: {e}")
-        st.error(traceback.format_exc())
-
-    finally:
-        sftp.close()
-        transport.close()
-
 def main():
     """Main function for the Streamlit app."""
     
@@ -336,12 +186,14 @@ def main():
                             files_processed = 0
 
                             progress_placeholder = st.empty()  # Initialize a single progress bar placeholder
+                            status_text = st.empty()  # Initialize status text placeholder
 
                             # Process each image one by one
                             for image_path in image_paths:
                                 try:
                                     # Update progress text
                                     progress_placeholder.progress(files_processed / total_files)
+                                    status_text.text(f"Processing {files_processed}/{total_files} images. Uploaded to SFTP: {files_processed}")
 
                                     # Open image
                                     img = Image.open(image_path)
@@ -363,6 +215,7 @@ def main():
                                     continue
 
                             progress_placeholder.progress(files_processed / total_files)
+                            status_text.text(f"Processing {files_processed}/{total_files} images. Uploaded to SFTP: {files_processed}")
                             st.success(f"Successfully processed and transferred {files_processed} files to the SFTP server.")
 
                     except Exception as e:
