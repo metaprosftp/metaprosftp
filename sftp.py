@@ -52,9 +52,6 @@ if 'upload_count' not in st.session_state:
 if 'api_key' not in st.session_state:
     st.session_state['api_key'] = None
 
-if 'sftp_username' not in st.session_state:
-    st.session_state['sftp_username'] = "209940897"
-
 if 'title_prompt' not in st.session_state:
     st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
 
@@ -128,10 +125,11 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
         st.error(f"An error occurred while embedding metadata: {e}")
         st.error(traceback.format_exc())  # Print detailed error traceback for debugging
 
-def sftp_upload(image_path, sftp_username, sftp_password, progress_placeholder, files_processed, total_files):
+def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed, total_files):
     # SFTP connection details
     sftp_host = "sftp.contributor.adobestock.com"
     sftp_port = 22
+    sftp_username = "209940897"
 
     # Initialize SFTP connection
     transport = paramiko.Transport((sftp_host, sftp_port))
@@ -248,7 +246,7 @@ def main():
             st.error("Invalid validation key. Please enter the correct key.")
 
     if st.session_state['license_validated']:
-        # Read start date from license file
+        # Check the license file for the start date
         with open(license_file, 'r') as file:
             start_date_str = file.read().strip()
             start_date = datetime.fromisoformat(start_date_str)
@@ -271,15 +269,8 @@ def main():
         if api_key:
             st.session_state['api_key'] = api_key
 
-        # SFTP Username input
-        sftp_username = st.text_input('SFTP Username', value=st.session_state['sftp_username'])
-
-        # Save SFTP username in session state
-        if sftp_username:
-            st.session_state['sftp_username'] = sftp_username
-
         # SFTP Password input
-        sftp_password = st.text_input('SFTP Password', type='password')
+        sftp_password = st.text_input('SFTP Password', type='password')   
 
         # Commented out the Title and tags prompts input
         # title_prompt = st.text_area('Title Prompt', value=st.session_state['title_prompt'], height=100)
@@ -353,7 +344,7 @@ def main():
                                     
                                     # Upload via SFTP
                                     if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_username, sftp_password, upload_progress_placeholder, files_processed, total_files)
+                                        sftp_upload(updated_image_path, sftp_password, upload_progress_placeholder, files_processed, total_files)
                                         files_processed += 1
 
                                 except Exception as e:
