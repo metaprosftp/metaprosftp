@@ -348,7 +348,16 @@ def main():
                                     img = Image.open(image_path)
 
                                     # Generate metadata
-                                    metadata = generate_metadata(model, img)
+                                    try:
+                                        metadata = generate_metadata(model, img)
+                                    except ValueError as ve:
+                                        if "response.text quick accessor" in str(ve):
+                                            thumbnail = img.copy()
+                                            thumbnail.thumbnail((100, 100))  # Create a small thumbnail
+                                            st.image(thumbnail, caption=f"{os.path.basename(image_path)} could not be processed due to violating AI generation terms.", width=100)
+                                            continue
+                                        else:
+                                            raise ve
 
                                     # Embed metadata
                                     updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
@@ -364,7 +373,7 @@ def main():
                                     continue
 
                             progress_placeholder.progress(files_processed / total_files)
-                            status_text.text(f"Processing {files_processed}/{total_files} images. Uploaded to SFTP: {files_processed}")
+                            status_text.text(f"Successfully processed and transferred {files_processed} out of {total_files} files to the SFTP server.")
                             st.success(f"Successfully processed and transferred {files_processed} files to the SFTP server.")
 
                     except Exception as e:
