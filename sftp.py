@@ -139,7 +139,7 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
     try:
         filename = os.path.basename(image_path)
         sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
-        progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
+        progress_placeholder.text(f"Uploaded {files_processed + 1}/{total_files} files to SFTP server.")
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
@@ -325,13 +325,14 @@ def main():
                             total_files = len(image_paths)
                             files_processed = 0
 
+                            # Progress placeholder for embedding metadata
+                            embed_progress_placeholder = st.empty()
+                            # Progress placeholder for SFTP upload
+                            upload_progress_placeholder = st.empty()
+
                             # Process each image one by one
                             for image_path in image_paths:
                                 try:
-                                    # Update progress text
-                                    progress_placeholder = st.empty()
-                                    progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
-
                                     # Open image
                                     img = Image.open(image_path)
 
@@ -339,11 +340,11 @@ def main():
                                     metadata = generate_metadata(model, img)
 
                                     # Embed metadata
-                                    updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
+                                    updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
                                     
                                     # Upload via SFTP
                                     if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
+                                        sftp_upload(updated_image_path, sftp_password, upload_progress_placeholder, files_processed, total_files)
                                         files_processed += 1
 
                                 except Exception as e:
