@@ -12,7 +12,6 @@ import unicodedata
 from datetime import datetime, timedelta
 import pytz
 import json
-import unicodedata
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -334,11 +333,10 @@ def main():
                             total_files = len(image_paths)
                             files_processed = 0
 
-			    # Progress placeholder for embedding metadata
+                            # Progress placeholder for embedding metadata
                             embed_progress_placeholder = st.empty()
                             # Progress placeholder for SFTP upload
                             upload_progress_placeholder = st.empty()
-
 
                             # Process each image one by one
                             for image_path in image_paths:
@@ -358,7 +356,7 @@ def main():
                                     
                                     # Upload via SFTP
                                     if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
+                                        sftp_upload(updated_image_path, sftp_password, upload_progress_placeholder, files_processed + 1, total_files)  # Adjust the files_processed parameter for the progress text
                                         files_processed += 1
 
                                 except Exception as e:
