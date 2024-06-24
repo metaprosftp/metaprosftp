@@ -137,6 +137,7 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
     try:
         filename = os.path.basename(image_path)
         sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
+        progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
@@ -340,6 +341,7 @@ def main():
                             for image_path in image_paths:
                                 try:
                                     # Update progress text
+                                    progress_placeholder.progress(files_processed / total_files)
                                     status_text.text(f"Processing {files_processed}/{total_files} images. Uploaded to SFTP: {files_processed}")
 
                                     # Open image
@@ -347,7 +349,6 @@ def main():
 
                                     # Generate metadata
                                     metadata = generate_metadata(model, img)
-                                    updated_image_path = generate_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
 
                                     # Embed metadata
                                     updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
@@ -362,6 +363,7 @@ def main():
                                     st.error(traceback.format_exc())
                                     continue
 
+                            progress_placeholder.progress(files_processed / total_files)
                             status_text.text(f"Processing {files_processed}/{total_files} images. Uploaded to SFTP: {files_processed}")
                             st.success(f"Successfully processed and transferred {files_processed} files to the SFTP server.")
 
