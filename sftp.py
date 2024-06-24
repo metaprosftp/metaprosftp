@@ -90,7 +90,7 @@ def generate_metadata(model, img):
     }
     
 # Function to embed metadata into images
-def embed_metadata(image_path, metadata, progress_bar, files_processed, total_files):
+def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
     try:
         # Simulate delay
         time.sleep(1)
@@ -112,10 +112,9 @@ def embed_metadata(image_path, metadata, progress_bar, files_processed, total_fi
         # Save the image with the embedded metadata
         iptc_data.save()
 
-        # Update progress bar
+        # Update progress text
         files_processed += 1
-        progress_bar.progress(files_processed / total_files)
-        progress_bar.text(f"Embedding metadata for image {files_processed}/{total_files}")
+        progress_placeholder.text(f"Embedding metadata for image {files_processed}/{total_files}")
 
         # Return the updated image path for further processing
         return image_path
@@ -124,7 +123,7 @@ def embed_metadata(image_path, metadata, progress_bar, files_processed, total_fi
         st.error(f"An error occurred while embedding metadata: {e}")
         st.error(traceback.format_exc())  # Print detailed error traceback for debugging
 
-def sftp_upload(image_paths, sftp_password, progress_placeholder):
+def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed, total_files):
     # SFTP connection details
     sftp_host = "sftp.contributor.adobestock.com"
     sftp_port = 22
@@ -136,10 +135,9 @@ def sftp_upload(image_paths, sftp_password, progress_placeholder):
     sftp = paramiko.SFTPClient.from_transport(transport)
 
     try:
-        for i, image_path in enumerate(image_paths, start=1):
-            filename = os.path.basename(image_path)
-            sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
-            progress_placeholder.text(f"Uploaded {i}/{len(image_paths)} files to SFTP server.")
+        filename = os.path.basename(image_path)
+        sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
+        progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
@@ -333,45 +331,36 @@ def main():
                                     f.write(file.read())
                                 image_paths.append(temp_image_path)
 
-                            # Process each image and generate titles and tags using AI
-                            metadata_list = []
-                            process_placeholder = st.empty()
-                            for i, image_path in enumerate(image_paths):
-                                process_placeholder.text(f"Processing Generate Titles and Tags {i + 1}/{len(image_paths)}")
-                                try:
-                                    img = Image.open(image_path)
-                                    metadata = generate_metadata(model, img)
-                                    metadata_list.append(metadata)
-                                except Exception as e:
-                                    st.error(f"An error occurred while generating metadata for {os.path.basename(image_path)}: {e}")
-                                    st.error(traceback.format_exc())
-                                    continue
-
-                            # Embed metadata into images
                             total_files = len(image_paths)
                             files_processed = 0
 
-                            # Display the progress bar and current file number
-                            progress_placeholder = st.empty()
-                            progress_bar = progress_placeholder.progress(0)
-                            progress_placeholder.text(f"Processing images 0/{total_files}")
+                            # Process each image one by one
+                            for image_path in image_paths:
+                                try:
+                                    # Update progress text
+                                    progress_placeholder = st.empty()
+                                    progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
 
-                            processed_image_paths = []
-                            for i, (image_path, metadata) in enumerate(zip(image_paths, metadata_list)):
-                                process_placeholder.text(f"Embedding metadata for image {i + 1}/{len(image_paths)}")
-                                updated_image_path = embed_metadata(image_path, metadata, progress_bar, files_processed, total_files)
-                                if updated_image_path:
-                                    processed_image_paths.append(updated_image_path)
-                                    files_processed += 1
-                                    # Update progress bar and current file number
-                                    progress_bar.progress(files_processed / total_files)
+                                    # Open image
+                                    img = Image.open(image_path)
 
-                            # Upload processed images via SFTP
-                            if processed_image_paths:
-                                st.write("Uploading processed images via SFTP...")
-                                sftp_upload(processed_image_paths, sftp_password, progress_placeholder)
+                                    # Generate metadata
+                                    metadata = generate_metadata(model, img)
 
-                                st.success(f"Successfully transferred {len(processed_image_paths)} files to the SFTP server.")
+                                    # Embed metadata
+                                    updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
+                                    
+                                    # Upload via SFTP
+                                    if updated_image_path:
+                                        sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
+                                        files_processed += 1
+
+                                except Exception as e:
+                                    st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
+                                    st.error(traceback.format_exc())
+                                    continue
+
+                            st.success(f"Successfully processed and transferred {files_processed} files to the SFTP server.")
 
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
