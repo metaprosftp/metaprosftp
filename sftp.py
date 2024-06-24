@@ -299,6 +299,11 @@ def main():
             if invalid_files:
                 st.error("Only JPG and JPEG files are supported.")
 
+            # Limit the number of files to upload to 50
+            if len(valid_files) > 50:
+                st.warning("You can upload a maximum of 50 files at a time.")
+                return
+
             if valid_files and st.button("Process"):
                 with st.spinner("Processing..."):
                     try:
