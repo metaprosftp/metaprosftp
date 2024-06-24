@@ -56,7 +56,7 @@ if 'sftp_username' not in st.session_state:
     st.session_state['sftp_username'] = "209940897"
 
 if 'title_prompt' not in st.session_state:
-    st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
+    st.session_state['title_prompt'] = ("Create a descriptive and accurate title in English, up to 12 words long. Ensure the title introduces the content clearly and is relevant, descriptive, and precise. Avoid formal sentence structures and the use of brand names, product names, or people's names. ")
 
 if 'tags_prompt' not in st.session_state:
     st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.")
@@ -80,8 +80,19 @@ def generate_metadata(model, img):
     # Converting keywords to lowercase
     keywords = [word.lower() for word in keywords]
     
-    # Limiting keywords to 49 words and removing duplicates
-    unique_keywords = list(set(keywords))[:49]
+    # Removing duplicates and limiting to 49 words
+    unique_keywords = list(set(keywords))
+    
+    if len(unique_keywords) < 49:
+        additional_tags = model.generate_content([
+            f"Generate {49 - len(unique_keywords)} additional general and relevant keywords for the provided image.", 
+            img
+        ])
+        additional_keywords = re.findall(r'\w+', additional_tags.text)
+        unique_keywords.extend(additional_keywords)
+    
+    # Limiting keywords to 49 words
+    unique_keywords = unique_keywords[:49]
 
     # Joining keywords with commas
     trimmed_tags = ','.join(unique_keywords)
@@ -299,12 +310,7 @@ def main():
             if invalid_files:
                 st.error("Only JPG and JPEG files are supported.")
 
-            # Display the number of uploaded files
-            st.write(f"Number of uploaded files: {len(valid_files)}")
-
-            if len(valid_files) > 50:
-                st.warning("You can only upload a maximum of 50 files at a time.")
-            elif st.button("Process"):
+            if valid_files and st.button("Process"):
                 with st.spinner("Processing..."):
                     try:
                         # Check and update upload count for the current date
