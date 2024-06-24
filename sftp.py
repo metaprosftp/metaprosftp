@@ -347,6 +347,7 @@ def main():
 
                                     # Generate metadata
                                     metadata = generate_metadata(model, img)
+                                    updated_image_path = generate_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
 
                                     # Embed metadata
                                     updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
