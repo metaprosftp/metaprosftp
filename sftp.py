@@ -341,7 +341,6 @@ def main():
                             for image_path in image_paths:
                                 try:
                                     # Update progress text
-                                    progress_placeholder.progress(files_processed / total_files)
                                     status_text.text(f"Processing {files_processed}/{total_files} images. Uploaded to SFTP: {files_processed}")
 
                                     # Open image
