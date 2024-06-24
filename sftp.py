@@ -139,11 +139,14 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
     try:
         filename = os.path.basename(image_path)
         sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
+        files_processed += 1  # Increment the number of files processed
         progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
+        return files_processed
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
         st.error(traceback.format_exc())
+        return files_processed
 
     finally:
         sftp.close()
@@ -264,21 +267,13 @@ def main():
 
         # API Key input
         api_key = st.text_input('Enter your API Key', value=st.session_state['api_key'] or '')
-
+        
         # Save API key in session state
         if api_key:
             st.session_state['api_key'] = api_key
-
+            
         # SFTP Password input
         sftp_password = st.text_input('SFTP Password', type='password')   
-
-        # Title and tags prompts input
-        title_prompt = st.text_area('Title Prompt', value=st.session_state['title_prompt'], height=100)
-        tags_prompt = st.text_area('Tags Prompt', value=st.session_state['tags_prompt'], height=100)
-
-        # Save prompts in session state
-        st.session_state['title_prompt'] = title_prompt
-        st.session_state['tags_prompt'] = tags_prompt
 
         # Upload image files
         uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
@@ -299,7 +294,7 @@ def main():
                                 'date': current_date.date(),
                                 'count': 0
                             }
-
+                        
                         # Check if remaining uploads are available
                         if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
                             remaining_uploads = 1000 - st.session_state['upload_count']['count']
@@ -326,10 +321,10 @@ def main():
                             files_processed = 0
 
                             # Process each image one by one
+                            progress_placeholder = st.empty()  # Create a single placeholder
                             for image_path in image_paths:
                                 try:
                                     # Update progress text
-                                    progress_placeholder = st.empty()
                                     progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
 
                                     # Open image
@@ -343,8 +338,7 @@ def main():
                                     
                                     # Upload via SFTP
                                     if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
-                                        files_processed += 1
+                                        files_processed = sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
 
                                 except Exception as e:
                                     st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
