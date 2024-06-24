@@ -350,6 +350,10 @@ def main():
 
                                     # Generate metadata
                                     metadata = generate_metadata(model, img)
+
+                                    # Embed metadata
+                                    updated_image_path = embed_metadata(updated_image_path, sftp_password, upload_progress_placeholder, files_processed + 1, total_files)  # Adjust the files_processed parameter for the progress text
+                                        files_processed += 1
                                     
                                     # Upload via SFTP
                                     if updated_image_path:
