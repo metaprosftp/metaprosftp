@@ -362,7 +362,6 @@ def main():
                                     st.error(traceback.format_exc())
                                     continue
 
-                            progress_placeholder.progress(files_processed / total_files)
                             status_text.text(f"Processing {files_processed}/{total_files} images. Uploaded to SFTP: {files_processed}")
                             st.success(f"Successfully processed and transferred {files_processed} files to the SFTP server.")
 
