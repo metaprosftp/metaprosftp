@@ -4,17 +4,12 @@ import tempfile
 from PIL import Image
 import google.generativeai as genai
 import iptcinfo3
-import zipfile
 import time
 import traceback
 import re
 import unicodedata
 from datetime import datetime, timedelta
 import pytz
-import json
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 import paramiko
 
 # Set the timezone to UTC+7 Jakarta
@@ -87,7 +82,7 @@ def generate_metadata(model, img):
         'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
         'Tags': normalized_tags  # Normalized and trimmed tags
     }
-    
+
 # Function to embed metadata into images
 def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
     try:
@@ -112,8 +107,7 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
         iptc_data.save()
 
         # Update progress text
-        files_processed += 1
-        progress_placeholder.text(f"Embedding metadata for image {files_processed}/{total_files}")
+        progress_placeholder.text(f"Embedding metadata for image {files_processed + 1}/{total_files}")
 
         # Return the updated image path for further processing
         return image_path
@@ -136,7 +130,7 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
     try:
         filename = os.path.basename(image_path)
         sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
-        progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
+        progress_placeholder.text(f"Uploaded {files_processed + 1}/{total_files} files to SFTP server.")
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
@@ -188,31 +182,6 @@ def main():
             else:
                 st.error("Invalid username or password.")
         return
-
-    # Display "About" button at the top
-    if st.button("About"):
-        st.markdown("""
-        ### Why Choose MetaPro?
-
-        **AI-Powered Precision:** Leverage the power of Google Generative AI to automatically generate highly relevant and descriptive titles and tags for your images. Enhance your image metadata with unprecedented accuracy and relevance.
-
-        **Streamlined Workflow:** Upload your images in just a few clicks. Our app processes each photo, embeds the generated metadata, and prepares it for upload—automatically and effortlessly.
-
-        **Secure and Efficient Gdrive Upload:** Once processed, your images are securely uploaded to gdrive. Keep your workflow smooth and your data safe with our robust upload system.
-
-        *How It Works:*
-        1. Upload Your Images: Drag and drop your JPG/JPEG files into the uploader.
-        2. Generate Metadata: Watch as the app uses AI to create descriptive titles and relevant tags.
-        3. Embed Metadata: The app embeds the metadata directly into your images.
-        4. Directly upload to Google Drive for faster downloads.
-        
-        **Subscribe Now and Experience the Difference:**
-        - **MetaPro Basic Plan: $10 for 3 months – Upload up to 1,000 images daily.
-        - **MetaPro Premium Plan: $40 for unlimited image uploads for a lifetime.
-
-        Ready to revolutionize your workflow? Subscribe today and take the first step towards a smarter, more efficient image management solution.
-
-        """)
 
     # Check logout at the end
     if st.button("Logout"):
@@ -333,11 +302,6 @@ def main():
                             total_files = len(image_paths)
                             files_processed = 0
 
-                            # Progress placeholder for embedding metadata
-                            embed_progress_placeholder = st.empty()
-                            # Progress placeholder for SFTP upload
-                            upload_progress_placeholder = st.empty()
-
                             # Process each image one by one
                             for image_path in image_paths:
                                 try:
@@ -352,12 +316,11 @@ def main():
                                     metadata = generate_metadata(model, img)
 
                                     # Embed metadata
-                                    updated_image_path = embed_metadata(updated_image_path, sftp_password, upload_progress_placeholder, files_processed + 1, total_files)  # Adjust the files_processed parameter for the progress text
-                                        files_processed += 1
+                                    updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
                                     
                                     # Upload via SFTP
                                     if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_password, upload_progress_placeholder, files_processed + 1, total_files)  # Adjust the files_processed parameter for the progress text
+                                        sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
                                         files_processed += 1
 
                                 except Exception as e:
