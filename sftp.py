@@ -263,9 +263,6 @@ def main():
         # SFTP Password input
         sftp_password = st.text_input('SFTP Password', type='password')   
 
-        # Save prompts in session state
-        st.session_state['title_prompt'] = title_prompt
-        st.session_state['tags_prompt'] = tags_prompt
 
         # Upload image files
         uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
