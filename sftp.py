@@ -137,8 +137,6 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
     try:
         filename = os.path.basename(image_path)
         sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
-        files_processed += 1
-        progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
@@ -150,7 +148,7 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
 
 def main():
     """Main function for the Streamlit app."""
-    
+
     # Apply custom styling
     st.markdown("""
     <style>
@@ -162,15 +160,14 @@ def main():
     # Check if user is logged in
     if not st.session_state['logged_in']:
         # Display login form
-        # Use custom HTML and CSS to style the title
         st.markdown("""
-    <style>
-    .small-title {
-        font-size: 1.5em; /* Adjust the size as needed */
-    }
-    </style>
-    <h1 class="small-title">Login</h1>
-    """, unsafe_allow_html=True)
+        <style>
+        .small-title {
+            font-size: 1.5em; /* Adjust the size as needed */
+        }
+        </style>
+        <h1 class="small-title">Login</h1>
+        """, unsafe_allow_html=True)
 
         username = st.text_input("Username")
         password = st.text_input("Password", type='password')
@@ -207,7 +204,7 @@ def main():
         2. Generate Metadata: Watch as the app uses AI to create descriptive titles and relevant tags.
         3. Embed Metadata: The app embeds the metadata directly into your images.
         4. Directly upload to Google Drive for faster downloads.
-        
+
         **Subscribe Now and Experience the Difference:**
         - **MetaPro Basic Plan: $10 for 3 months – Upload up to 1,000 images daily.
         - **MetaPro Premium Plan: $40 for unlimited image uploads for a lifetime.
@@ -282,13 +279,13 @@ def main():
 
         # API Key input
         api_key = st.text_input('Enter your API Key', value=st.session_state['api_key'] or '')
-        
+
         # Save API key in session state
         if api_key:
             st.session_state['api_key'] = api_key
-            
+
         # SFTP Password input
-        sftp_password = st.text_input('SFTP Password', type='password')   
+        sftp_password = st.text_input('SFTP Password', type='password')
 
         # Upload image files
         uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
@@ -309,7 +306,7 @@ def main():
                                 'date': current_date.date(),
                                 'count': 0
                             }
-                        
+
                         # Check if remaining uploads are available
                         if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
                             remaining_uploads = 1000 - st.session_state['upload_count']['count']
@@ -335,11 +332,13 @@ def main():
                             total_files = len(image_paths)
                             files_processed = 0
 
+                            # Placeholder for overall progress
+                            progress_placeholder = st.empty()
+
                             # Process each image one by one
                             for image_path in image_paths:
                                 try:
                                     # Update progress text
-                                    progress_placeholder = st.empty()
                                     progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
 
                                     # Open image
@@ -350,11 +349,14 @@ def main():
 
                                     # Embed metadata
                                     updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
-                                    
+
                                     # Upload via SFTP
                                     if updated_image_path:
                                         sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
                                         files_processed += 1
+
+                                    # Update progress text for SFTP upload
+                                    progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
 
                                 except Exception as e:
                                     st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
