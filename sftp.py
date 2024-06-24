@@ -137,6 +137,7 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
     try:
         filename = os.path.basename(image_path)
         sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
+        progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
@@ -338,8 +339,8 @@ def main():
                                 try:
                                     # Update progress text
                                     progress_placeholder = st.empty()
-                                    progress_placeholder.text(f"Processing image Generate Title & Tags {files_processed + 1}/{total_files}")
-                                    progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
+                                    progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
+
                                     # Open image
                                     img = Image.open(image_path)
 
@@ -351,9 +352,9 @@ def main():
                                     
                                     # Upload via SFTP
                                     if updated_image_path:
-                                        sftp_upload(image_path, sftp_password, progress_placeholder, files_processed, total_files)
+                                        sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
                                         files_processed += 1
-                                    
+
                                 except Exception as e:
                                     st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
                                     st.error(traceback.format_exc())
@@ -367,3 +368,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
