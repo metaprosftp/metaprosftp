@@ -263,10 +263,6 @@ def main():
         # SFTP Password input
         sftp_password = st.text_input('SFTP Password', type='password')   
 
-        # Title and tags prompts input
-        title_prompt = st.text_area('Title Prompt', value=st.session_state['title_prompt'], height=100)
-        tags_prompt = st.text_area('Tags Prompt', value=st.session_state['tags_prompt'], height=100)
-
         # Save prompts in session state
         st.session_state['title_prompt'] = title_prompt
         st.session_state['tags_prompt'] = tags_prompt
