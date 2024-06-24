@@ -4,12 +4,18 @@ import tempfile
 from PIL import Image
 import google.generativeai as genai
 import iptcinfo3
+import zipfile
 import time
 import traceback
 import re
 import unicodedata
 from datetime import datetime, timedelta
 import pytz
+import json
+import unicodedata
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 import paramiko
 
 # Set the timezone to UTC+7 Jakarta
@@ -46,6 +52,12 @@ if 'upload_count' not in st.session_state:
 if 'api_key' not in st.session_state:
     st.session_state['api_key'] = None
 
+if 'title_prompt' not in st.session_state:
+    st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
+
+if 'tags_prompt' not in st.session_state:
+    st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.")
+
 # Function to normalize and clean text
 def normalize_text(text):
     normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
@@ -53,16 +65,12 @@ def normalize_text(text):
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
-    caption = model.generate_content([
-        "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", 
-        img
-    ])
-    
-    tags = model.generate_content([
-        "Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.", 
-        img
-    ])
-    
+    title_prompt = st.session_state['title_prompt']
+    tags_prompt = st.session_state['tags_prompt']
+
+    caption = model.generate_content([title_prompt, img])
+    tags = model.generate_content([tags_prompt, img])
+
     # Extracting keywords and ensuring they are single words
     keywords = re.findall(r'\w+', tags.text)
     
@@ -107,7 +115,8 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
         iptc_data.save()
 
         # Update progress text
-        progress_placeholder.text(f"Embedding metadata for image {files_processed + 1}/{total_files}")
+        files_processed += 1
+        progress_placeholder.text(f"Processing images to generate titles, tags, and embed metadata {files_processed}/{total_files}")
 
         # Return the updated image path for further processing
         return image_path
@@ -263,6 +272,13 @@ def main():
         # SFTP Password input
         sftp_password = st.text_input('SFTP Password', type='password')   
 
+        # Commented out the Title and tags prompts input
+        # title_prompt = st.text_area('Title Prompt', value=st.session_state['title_prompt'], height=100)
+        # tags_prompt = st.text_area('Tags Prompt', value=st.session_state['tags_prompt'], height=100)
+
+        # Save prompts in session state
+        # st.session_state['title_prompt'] = title_prompt
+        # st.session_state['tags_prompt'] = tags_prompt
 
         # Upload image files
         uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
@@ -308,6 +324,11 @@ def main():
 
                             total_files = len(image_paths)
                             files_processed = 0
+
+                            # Progress placeholder for embedding metadata
+                            embed_progress_placeholder = st.empty()
+                            # Progress placeholder for SFTP upload
+                            upload_progress_placeholder = st.empty()
 
                             # Process each image one by one
                             for image_path in image_paths:
