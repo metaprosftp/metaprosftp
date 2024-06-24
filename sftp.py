@@ -183,6 +183,12 @@ def main():
                 st.error("Invalid username or password.")
         return
 
+    # Display "About" button at the top
+    if st.button("About"):
+        st.markdown("""
+        ### Why Choose MetaPro?
+        """)
+
     # Check logout at the end
     if st.button("Logout"):
         st.session_state['logged_in'] = False
@@ -249,13 +255,21 @@ def main():
 
         # API Key input
         api_key = st.text_input('Enter your API Key', value=st.session_state['api_key'] or '')
-        
+
         # Save API key in session state
         if api_key:
             st.session_state['api_key'] = api_key
-            
+
         # SFTP Password input
         sftp_password = st.text_input('SFTP Password', type='password')   
+
+        # Title and tags prompts input
+        title_prompt = st.text_area('Title Prompt', value=st.session_state['title_prompt'], height=100)
+        tags_prompt = st.text_area('Tags Prompt', value=st.session_state['tags_prompt'], height=100)
+
+        # Save prompts in session state
+        st.session_state['title_prompt'] = title_prompt
+        st.session_state['tags_prompt'] = tags_prompt
 
         # Upload image files
         uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
@@ -276,7 +290,7 @@ def main():
                                 'date': current_date.date(),
                                 'count': 0
                             }
-                        
+
                         # Check if remaining uploads are available
                         if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
                             remaining_uploads = 1000 - st.session_state['upload_count']['count']
@@ -305,10 +319,6 @@ def main():
                             # Process each image one by one
                             for image_path in image_paths:
                                 try:
-                                    # Update progress text
-                                    progress_placeholder = st.empty()
-                                    progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
-
                                     # Open image
                                     img = Image.open(image_path)
 
@@ -316,11 +326,11 @@ def main():
                                     metadata = generate_metadata(model, img)
 
                                     # Embed metadata
-                                    updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
+                                    updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
                                     
                                     # Upload via SFTP
                                     if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
+                                        sftp_upload(updated_image_path, sftp_password, upload_progress_placeholder, files_processed, total_files)
                                         files_processed += 1
 
                                 except Exception as e:
