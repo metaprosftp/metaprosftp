@@ -59,36 +59,48 @@ def normalize_text(text):
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
-    caption = model.generate_content([
-        "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", 
-        img
-    ])
-    
-    tags = model.generate_content([
-        "Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.", 
-        img
-    ])
-    
-    # Extracting keywords and ensuring they are single words
-    keywords = re.findall(r'\w+', tags.text)
-    
-    # Converting keywords to lowercase
-    keywords = [word.lower() for word in keywords]
-    
-    # Limiting keywords to 49 words and removing duplicates
-    unique_keywords = list(set(keywords))[:49]
+    try:
+        caption_response = model.generate_content([
+            "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", 
+            img
+        ])
+        tags_response = model.generate_content([
+            "Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.", 
+            img
+        ])
+        
+        if not caption_response or not caption_response.candidates:
+            raise ValueError("No valid caption response from the AI model.")
+        if not tags_response or not tags_response.candidates:
+            raise ValueError("No valid tags response from the AI model.")
+        
+        caption = caption_response.candidates[0]
+        tags = tags_response.candidates[0]
+        
+        # Extracting keywords and ensuring they are single words
+        keywords = re.findall(r'\w+', tags.text)
+        
+        # Converting keywords to lowercase
+        keywords = [word.lower() for word in keywords]
+        
+        # Limiting keywords to 49 words and removing duplicates
+        unique_keywords = list(set(keywords))[:49]
 
-    # Joining keywords with commas
-    trimmed_tags = ','.join(unique_keywords)
-    
-    # Normalize tags
-    normalized_tags = normalize_text(trimmed_tags.strip())
-    
-    return {
-        'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
-        'Tags': normalized_tags  # Normalized and trimmed tags
-    }
-    
+        # Joining keywords with commas
+        trimmed_tags = ','.join(unique_keywords)
+        
+        # Normalize tags
+        normalized_tags = normalize_text(trimmed_tags.strip())
+        
+        return {
+            'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
+            'Tags': normalized_tags  # Normalized and trimmed tags
+        }
+    except Exception as e:
+        st.error(f"An error occurred while generating metadata: {e}")
+        st.error(traceback.format_exc())
+        return None
+
 # Function to embed metadata into images
 def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
     try:
@@ -224,15 +236,22 @@ def main():
 
     # Check lock file before proceeding
     if not check_lock():
-        st.error("Access denied. Your MetaPro Basic Plan subscription is limited to only one device.")
+        st.error("Access denied. Your MetaPro Basic Plan subscription is limited to one user only.")
         return
 
-    # Display WhatsApp chat link
-    st.markdown("""
-    <div style="text-align: center; margin-top: 20px;">
-        <a href="https://wa.me/6285328007533" target="_blank">
-            <button style="background-color: #1976d2; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
-                MetaPro
+    # Add a logo at the top of the sidebar
+    st.sidebar.image("https://storage.googleapis.com/kaggle-datasets-images/1068239/1774859/51d04a509acc1dbf64a33b24d571eb92/dataset-cover.jpg?t=2023-07-22-13-11-33", width=100)
+    
+    # Title in the sidebar
+    st.sidebar.markdown("# MetaPro Subscription")
+
+    st.sidebar.markdown("""
+    <div style="text-align: center;">
+        <h2>Subscribe Now and Experience the Difference</h2>
+        <p>Ready to revolutionize your workflow? Subscribe today and take the first step towards a smarter, more efficient image management solution.</p>
+        <a href="https://buy.stripe.com/test_28odRw4H53Yp7yM5kk">
+            <button style="background-color: #FF4B4B; color: white; border: none; padding: 10px 20px; text-align: center; text-decoration: none; display: inline-block; font-size: 16px; border-radius: 5px; cursor: pointer;">
+                Subscribe for $10
             </button>
         </a>
     </div>
@@ -346,14 +365,17 @@ def main():
 
                                     # Generate metadata
                                     metadata = generate_metadata(model, img)
-
-                                    # Embed metadata
-                                    updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
                                     
-                                    # Upload via SFTP
-                                    if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
-                                        files_processed += 1
+                                    if metadata:
+                                        # Embed metadata
+                                        updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
+                                        
+                                        # Upload via SFTP
+                                        if updated_image_path:
+                                            sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
+                                            files_processed += 1
+                                    else:
+                                        st.warning(f"Skipping image {os.path.basename(image_path)} due to metadata generation issue.")
 
                                 except Exception as e:
                                     st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
