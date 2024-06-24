@@ -12,7 +12,6 @@ import unicodedata
 from datetime import datetime, timedelta
 import pytz
 import json
-import unicodedata
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -58,37 +57,45 @@ def normalize_text(text):
     return normalized
 
 # Function to generate metadata for images using AI model
-def generate_metadata(model, img):
-    caption = model.generate_content([
-        "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", 
-        img
-    ])
-    
-    tags = model.generate_content([
-        "Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.", 
-        img
-    ])
-    
-    # Extracting keywords and ensuring they are single words
-    keywords = re.findall(r'\w+', tags.text)
-    
-    # Converting keywords to lowercase
-    keywords = [word.lower() for word in keywords]
-    
-    # Limiting keywords to 49 words and removing duplicates
-    unique_keywords = list(set(keywords))[:49]
+def generate_metadata(model, img, progress_placeholder, files_processed, total_files):
+    try:
+        caption = model.generate_content([
+            "Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.", 
+            img
+        ])
+        
+        tags = model.generate_content([
+            "Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.", 
+            img
+        ])
+        
+        # Extracting keywords and ensuring they are single words
+        keywords = re.findall(r'\w+', tags.text)
+        
+        # Converting keywords to lowercase
+        keywords = [word.lower() for word in keywords]
+        
+        # Limiting keywords to 49 words and removing duplicates
+        unique_keywords = list(set(keywords))[:49]
 
-    # Joining keywords with commas
-    trimmed_tags = ','.join(unique_keywords)
+        # Joining keywords with commas
+        trimmed_tags = ','.join(unique_keywords)
+        
+        # Normalize tags
+        normalized_tags = normalize_text(trimmed_tags.strip())
+        
+        files_processed += 1
+        progress_placeholder.text(f"Generating metadata for image {files_processed}/{total_files}")
+
+        return {
+            'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
+            'Tags': normalized_tags  # Normalized and trimmed tags
+        }
     
-    # Normalize tags
-    normalized_tags = normalize_text(trimmed_tags.strip())
-    
-    return {
-        'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
-        'Tags': normalized_tags  # Normalized and trimmed tags
-    }
-    
+    except Exception as e:
+        st.error(f"An error occurred while generating metadata: {e}")
+        st.error(traceback.format_exc())  # Print detailed error traceback for debugging
+
 # Function to embed metadata into images
 def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
     try:
@@ -123,6 +130,7 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
         st.error(f"An error occurred while embedding metadata: {e}")
         st.error(traceback.format_exc())  # Print detailed error traceback for debugging
 
+# Function to upload file via SFTP
 def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed, total_files):
     # SFTP connection details
     sftp_host = "sftp.contributor.adobestock.com"
@@ -137,6 +145,7 @@ def sftp_upload(image_path, sftp_password, progress_placeholder, files_processed
     try:
         filename = os.path.basename(image_path)
         sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
+        files_processed += 1
         progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
 
     except Exception as e:
@@ -341,14 +350,13 @@ def main():
                             for image_path in image_paths:
                                 try:
                                     # Update progress text
-                                    progress_placeholder.progress(files_processed / total_files)
                                     status_text.text(f"Processing {files_processed}/{total_files} images. Uploaded to SFTP: {files_processed}")
 
                                     # Open image
                                     img = Image.open(image_path)
 
                                     # Generate metadata
-                                    metadata = generate_metadata(model, img)
+                                    metadata = generate_metadata(model, img, progress_placeholder, files_processed, total_files)
 
                                     # Embed metadata
                                     updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
