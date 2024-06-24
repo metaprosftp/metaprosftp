@@ -353,7 +353,6 @@ def main():
                                     # Upload via SFTP
                                     if updated_image_path:
                                         sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
-                                        files_processed += 1
 
                                 except Exception as e:
                                     st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
