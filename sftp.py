@@ -340,7 +340,6 @@ def main():
                                 try:
                                     # Update progress text
                                     progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
-                                    progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
                                     
                                     # Open image
                                     img = Image.open(image_path)
@@ -350,7 +349,8 @@ def main():
 
                                     # Embed metadata
                                     updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
-
+                                    progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
+                                    
                                     # Upload via SFTP
                                     if updated_image_path:
                                         sftp_upload(updated_image_path, sftp_password, progress_placeholder, files_processed, total_files)
