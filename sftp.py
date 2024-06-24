@@ -56,10 +56,10 @@ if 'sftp_username' not in st.session_state:
     st.session_state['sftp_username'] = "209940897"
 
 if 'title_prompt' not in st.session_state:
-    st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
+    st.session_state['title_prompt'] = ("Create a descriptive and accurate title in English, based on the provided image, up to 12 words long. Ensure the title introduces the content clearly and is relevant, descriptive, and precise. Avoid formal sentence structures and the use of brand names, product names, or people's names. Maintain caring, engaged language, especially when describing people.")
 
 if 'tags_prompt' not in st.session_state:
-    st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.")
+    st.session_state['tags_prompt'] = ("Generate up to 49 keywords in order of importance from most relevant to least. Ensure each keyword is accurate and descriptive, reflecting the subject matter, context, and main elements of the image. Use precise terms to capture unique aspects like location, activity, or theme for specificity. Include relevant demographic characteristics and avoid using brand names, product names, or any third-party intellectual property.")
 
 # Function to normalize and clean text
 def normalize_text(text):
