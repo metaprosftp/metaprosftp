@@ -339,7 +339,7 @@ def main():
                                 try:
                                     # Update progress text
                                     progress_placeholder = st.empty()
-                                    progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
+                                    progress_placeholder.text(f"Processing image Generate Title & Tags {files_processed + 1}/{total_files}")
 
                                     # Open image
                                     img = Image.open(image_path)
