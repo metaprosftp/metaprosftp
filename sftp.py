@@ -340,7 +340,8 @@ def main():
                                 try:
                                     # Update progress text
                                     progress_placeholder.text(f"Processing image {files_processed + 1}/{total_files}")
-
+                                    progress_placeholder.text(f"Uploaded {files_processed}/{total_files} files to SFTP server.")
+                                    
                                     # Open image
                                     img = Image.open(image_path)
 
