@@ -74,11 +74,15 @@ def generate_metadata(model, img):
         if not tags_response or not tags_response.candidates:
             raise ValueError("No valid tags response from the AI model.")
         
+        # Debugging: Print the attributes of the Candidate object
+        st.write(f"Caption response attributes: {dir(caption_response.candidates[0])}")
+        st.write(f"Tags response attributes: {dir(tags_response.candidates[0])}")
+        
         caption = caption_response.candidates[0]
         tags = tags_response.candidates[0]
         
-        # Extracting keywords and ensuring they are single words
-        keywords = re.findall(r'\w+', tags.text)
+        # Assuming the correct attribute name is `output_text` instead of `text`
+        keywords = re.findall(r'\w+', tags.output_text)
         
         # Converting keywords to lowercase
         keywords = [word.lower() for word in keywords]
@@ -93,7 +97,7 @@ def generate_metadata(model, img):
         normalized_tags = normalize_text(trimmed_tags.strip())
         
         return {
-            'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
+            'Title': caption.output_text.strip(),  # Strip leading/trailing whitespace from caption
             'Tags': normalized_tags  # Normalized and trimmed tags
         }
     except Exception as e:
@@ -227,16 +231,11 @@ def main():
 
         """)
 
-    # Check logout at the end
-    if st.button("Logout"):
-        st.session_state['logged_in'] = False
-        set_lock("")
-        st.success("Logged out successfully.")
-        return
-
-    # Check lock file before proceeding
+    # Display a warning message if another user is logged in
     if not check_lock():
-        st.error("Access denied. Your MetaPro Basic Plan subscription is limited to one user only.")
+        set_lock("logged_in")
+    else:
+        st.error("Another user is currently logged in. Please try again later.")
         return
 
     # Add a logo at the top of the sidebar
