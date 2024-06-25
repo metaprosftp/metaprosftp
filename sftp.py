@@ -85,7 +85,7 @@ def generate_metadata(model, img):
     
     if len(unique_keywords) < 35:
         additional_tags = model.generate_content([
-            f"Generate {35 - len(unique_keywords)} additional general and relevant keywords for the provided image.", 
+            f"Generate {35 - len(unique_keywords)} additional general and relevant keywords for the provided image, Focus on keywords related to the subject, style, and context.", 
             img
         ])
         additional_keywords = re.findall(r'\w+', additional_tags.text)
