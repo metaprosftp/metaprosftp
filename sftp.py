@@ -64,16 +64,20 @@ def normalize_text(text):
     return normalized
 
 # Function to generate metadata for images using AI model
-def generate_metadata(model, img):
+def generate_metadata(model, img_path):
     title_prompt = st.session_state['title_prompt']
 
+    # Open the image
+    with open(img_path, "rb") as img_file:
+        img_data = img_file.read()
+
     # Generate the title
-    caption = model.generate_content([title_prompt, img])
+    caption = model.generate_content(images=[img_data], prompt=title_prompt)
     title = caption.text.strip()
 
     # Generate tags based on the title
     tags_prompt = f"Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). The image contains {title}. Focus on keywords related to the subject, style, and context."
-    tags = model.generate_content([tags_prompt])
+    tags = model.generate_content(images=[img_data], prompt=tags_prompt)
 
     # Extracting keywords and ensuring they are single words
     keywords = re.findall(r'\w+', tags.text)
@@ -246,127 +250,89 @@ def main():
             with open(license_file, 'w') as file:
                 file.write(start_date.isoformat())
         else:
-            st.error("Invalid validation key. Please enter the correct key.")
+            st.error("Invalid validation key. Please enter the correct key to proceed.")
 
+    # Calculate end date and check license validity
     if st.session_state['license_validated']:
-        # Read start date from license file
-        with open(license_file, 'r') as file:
-            start_date_str = file.read().strip()
-            start_date = datetime.fromisoformat(start_date_str)
-
-        # Calculate the expiration date
-        expiration_date = start_date + timedelta(days=31)
+        end_date = start_date + timedelta(days=31)
         current_date = datetime.now(JAKARTA_TZ)
+        remaining_days = (end_date - current_date).days
 
-        if current_date > expiration_date:
-            st.error("Your license has expired. Please contact support for a new license key.")
-            return
+        if current_date <= end_date:
+            st.info(f"License is valid. You have {remaining_days} days left.")
         else:
-            days_remaining = (expiration_date - current_date).days
-            st.success(f"License valid. You have {days_remaining} days remaining.")
+            st.error("Your license has expired. Please renew to continue.")
+            return
 
-        # API Key input
-        api_key = st.text_input('Enter your API Key', value=st.session_state['api_key'] or '')
+    # Check if user has reached the daily upload limit (max 30 files per day)
+    max_uploads_per_day = 30
+    current_date_str = datetime.now(JAKARTA_TZ).strftime('%Y-%m-%d')
 
-        # Save API key in session state
-        if api_key:
-            st.session_state['api_key'] = api_key
+    if st.session_state['upload_count']['date'] != current_date_str:
+        st.session_state['upload_count'] = {
+            'date': current_date_str,
+            'count': 0
+        }
 
-        # SFTP Username input
-        sftp_username = st.text_input('SFTP Username', value=st.session_state['sftp_username'])
+    if st.session_state['upload_count']['count'] >= max_uploads_per_day:
+        st.error("You have reached the daily upload limit of 30 files.")
+        return
 
-        # Save SFTP username in session state
-        if sftp_username:
-            st.session_state['sftp_username'] = sftp_username
+    # Upload and process images
+    st.title("Upload and Process Images")
+    uploaded_files = st.file_uploader("Upload Images", type=['jpg', 'jpeg'], accept_multiple_files=True)
 
-        # SFTP Password input
-        sftp_password = st.text_input('SFTP Password', type='password')
+    if uploaded_files:
+        try:
+            api_key = st.text_input("Enter your API Key", type="password")
+            if st.button("Submit API Key"):
+                st.session_state['api_key'] = api_key
 
-        # Commented out the Title and tags prompts input
-        # title_prompt = st.text_area('Title Prompt', value=st.session_state['title_prompt'], height=100)
-        # tags_prompt = st.text_area('Tags Prompt', value=st.session_state['tags_prompt'], height=100)
+            if st.session_state['api_key']:
+                genai.configure(api_key=st.session_state['api_key'])
+                model = genai.get_model("gemini-pro-1")
 
-        # Save prompts in session state
-        # st.session_state['title_prompt'] = title_prompt
-        # st.session_state['tags_prompt'] = tags_prompt
+                # Process each image
+                total_files = len(uploaded_files)
+                files_processed = st.session_state['upload_count']['count']
+                progress_placeholder = st.empty()
+                embed_progress_placeholder = st.empty()
+                upload_progress_placeholder = st.empty()
 
-        # Upload image files
-        uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
-
-        if uploaded_files:
-            valid_files = [file for file in uploaded_files if file.type in ['image/jpeg', 'image/jpg']]
-            invalid_files = [file for file in uploaded_files if file not in valid_files]
-
-            if invalid_files:
-                st.error("Only JPG and JPEG files are supported.")
-
-            if valid_files and st.button("Process"):
-                with st.spinner("Processing..."):
+                for uploaded_file in uploaded_files:
                     try:
-                        # Check and update upload count for the current date
-                        if st.session_state['upload_count']['date'] != current_date.date():
-                            st.session_state['upload_count'] = {
-                                'date': current_date.date(),
-                                'count': 0
-                            }
+                        # Save uploaded image to a temporary file
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as temp_file:
+                            temp_file.write(uploaded_file.read())
+                            temp_file_path = temp_file.name
 
-                        # Check if remaining uploads are available
-                        if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
-                            remaining_uploads = 1000 - st.session_state['upload_count']['count']
-                            st.warning(f"You have exceeded the upload limit. Remaining uploads for today: {remaining_uploads}")
-                            return
-                        else:
-                            st.session_state['upload_count']['count'] += len(valid_files)
-                            st.success(f"Uploads successful. Remaining uploads for today: {1000 - st.session_state['upload_count']['count']}")
+                        # Generate metadata
+                        metadata = generate_metadata(model, temp_file_path)
 
-                        genai.configure(api_key=api_key)  # Configure AI model with API key
-                        model = genai.GenerativeModel('gemini-pro-vision')
+                        # Embed metadata
+                        updated_image_path = embed_metadata(temp_file_path, metadata, embed_progress_placeholder, files_processed, total_files)
 
-                        # Create a temporary directory to store the uploaded images
-                        with tempfile.TemporaryDirectory() as temp_dir:
-                            # Save the uploaded images to the temporary directory
-                            image_paths = []
-                            for file in valid_files:
-                                temp_image_path = os.path.join(temp_dir, file.name)
-                                with open(temp_image_path, 'wb') as f:
-                                    f.write(file.read())
-                                image_paths.append(temp_image_path)
-
-                            total_files = len(image_paths)
-                            files_processed = 0
-
-                            # Progress placeholder for embedding metadata
-                            embed_progress_placeholder = st.empty()
-                            # Progress placeholder for SFTP upload
-                            upload_progress_placeholder = st.empty()
-
-                            # Process each image one by one
-                            for image_path in image_paths:
-                                try:
-                                    # Open image
-                                    img = Image.open(image_path)
-
-                                    # Generate metadata
-                                    metadata = generate_metadata(model, img)
-
-                                    # Embed metadata
-                                    updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
-                                    
-                                    # Upload via SFTP
-                                    if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_username, sftp_password, upload_progress_placeholder, files_processed, total_files)
-                                        files_processed += 1
-
-                                except Exception as e:
-                                    st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
-                                    st.error(traceback.format_exc())
-                                    continue
-
-                            st.success(f"Successfully processed and transferred {files_processed} files to the SFTP server.")
+                        # Upload via SFTP
+                        if updated_image_path:
+                            sftp_upload(updated_image_path, st.session_state['sftp_username'], st.session_state['sftp_password'], upload_progress_placeholder, files_processed, total_files)
+                            files_processed += 1
 
                     except Exception as e:
-                        st.error(f"An error occurred: {e}")
-                        st.error(traceback.format_exc())  # Print detailed error traceback for debugging
+                        st.error(f"An error occurred while processing {uploaded_file.name}: {e}")
+                        st.error(traceback.format_exc())
+                        continue
 
-if __name__ == '__main__':
+                st.success("All files have been successfully processed and uploaded.")
+
+                # Update the upload count in session state
+                st.session_state['upload_count']['count'] = files_processed
+
+            else:
+                st.warning("Please enter your API Key to proceed.")
+
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
+            st.error(traceback.format_exc())
+
+if __name__ == "__main__":
     main()
