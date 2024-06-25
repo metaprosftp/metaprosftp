@@ -1,3 +1,4 @@
+
 import streamlit as st
 import os
 import tempfile
@@ -282,85 +283,82 @@ def main():
         # st.session_state['tags_prompt'] = tags_prompt
 
         # Upload image files
-        uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported, max 50 files)', accept_multiple_files=True)
+        uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
 
         if uploaded_files:
-            if len(uploaded_files) > 50:
-                st.error("You can upload a maximum of 50 files at a time.")
-            else:
-                valid_files = [file for file in uploaded_files if file.type in ['image/jpeg', 'image/jpg']]
-                invalid_files = [file for file in uploaded_files if file not in valid_files]
+            valid_files = [file for file in uploaded_files if file.type in ['image/jpeg', 'image/jpg']]
+            invalid_files = [file for file in uploaded_files if file not in valid_files]
 
-                if invalid_files:
-                    st.error("Only JPG and JPEG files are supported.")
+            if invalid_files:
+                st.error("Only JPG and JPEG files are supported.")
 
-                if valid_files and st.button("Process"):
-                    with st.spinner("Processing..."):
-                        try:
-                            # Check and update upload count for the current date
-                            if st.session_state['upload_count']['date'] != current_date.date():
-                                st.session_state['upload_count'] = {
-                                    'date': current_date.date(),
-                                    'count': 0
-                                }
+            if valid_files and st.button("Process"):
+                with st.spinner("Processing..."):
+                    try:
+                        # Check and update upload count for the current date
+                        if st.session_state['upload_count']['date'] != current_date.date():
+                            st.session_state['upload_count'] = {
+                                'date': current_date.date(),
+                                'count': 0
+                            }
 
-                            # Check if remaining uploads are available
-                            if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
-                                remaining_uploads = 1000 - st.session_state['upload_count']['count']
-                                st.warning(f"You have exceeded the upload limit. Remaining uploads for today: {remaining_uploads}")
-                                return
-                            else:
-                                st.session_state['upload_count']['count'] += len(valid_files)
-                                st.success(f"Uploads successful. Remaining uploads for today: {1000 - st.session_state['upload_count']['count']}")
+                        # Check if remaining uploads are available
+                        if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
+                            remaining_uploads = 1000 - st.session_state['upload_count']['count']
+                            st.warning(f"You have exceeded the upload limit. Remaining uploads for today: {remaining_uploads}")
+                            return
+                        else:
+                            st.session_state['upload_count']['count'] += len(valid_files)
+                            st.success(f"Uploads successful. Remaining uploads for today: {1000 - st.session_state['upload_count']['count']}")
 
-                            genai.configure(api_key=api_key)  # Configure AI model with API key
-                            model = genai.GenerativeModel('gemini-pro-vision')
+                        genai.configure(api_key=api_key)  # Configure AI model with API key
+                        model = genai.GenerativeModel('gemini-pro-vision')
 
-                            # Create a temporary directory to store the uploaded images
-                            with tempfile.TemporaryDirectory() as temp_dir:
-                                # Save the uploaded images to the temporary directory
-                                image_paths = []
-                                for file in valid_files:
-                                    temp_image_path = os.path.join(temp_dir, file.name)
-                                    with open(temp_image_path, 'wb') as f:
-                                        f.write(file.read())
-                                    image_paths.append(temp_image_path)
+                        # Create a temporary directory to store the uploaded images
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            # Save the uploaded images to the temporary directory
+                            image_paths = []
+                            for file in valid_files:
+                                temp_image_path = os.path.join(temp_dir, file.name)
+                                with open(temp_image_path, 'wb') as f:
+                                    f.write(file.read())
+                                image_paths.append(temp_image_path)
 
-                                total_files = len(image_paths)
-                                files_processed = 0
+                            total_files = len(image_paths)
+                            files_processed = 0
 
-                                # Progress placeholder for embedding metadata
-                                embed_progress_placeholder = st.empty()
-                                # Progress placeholder for SFTP upload
-                                upload_progress_placeholder = st.empty()
+                            # Progress placeholder for embedding metadata
+                            embed_progress_placeholder = st.empty()
+                            # Progress placeholder for SFTP upload
+                            upload_progress_placeholder = st.empty()
 
-                                # Process each image one by one
-                                for image_path in image_paths:
-                                    try:
-                                        # Open image
-                                        img = Image.open(image_path)
+                            # Process each image one by one
+                            for image_path in image_paths:
+                                try:
+                                    # Open image
+                                    img = Image.open(image_path)
 
-                                        # Generate metadata
-                                        metadata = generate_metadata(model, img)
+                                    # Generate metadata
+                                    metadata = generate_metadata(model, img)
 
-                                        # Embed metadata
-                                        updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
-                                        
-                                        # Upload via SFTP
-                                        if updated_image_path:
-                                            sftp_upload(updated_image_path, sftp_username, sftp_password, upload_progress_placeholder, files_processed, total_files)
-                                            files_processed += 1
+                                    # Embed metadata
+                                    updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
+                                    
+                                    # Upload via SFTP
+                                    if updated_image_path:
+                                        sftp_upload(updated_image_path, sftp_username, sftp_password, upload_progress_placeholder, files_processed, total_files)
+                                        files_processed += 1
 
-                                    except Exception as e:
-                                        st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
-                                        st.error(traceback.format_exc())
-                                        continue
+                                except Exception as e:
+                                    st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
+                                    st.error(traceback.format_exc())
+                                    continue
 
-                                st.success(f"Successfully processed and transferred {files_processed} files to the SFTP server.")
+                            st.success(f"Successfully processed and transferred {files_processed} files to the SFTP server.")
 
-                        except Exception as e:
-                            st.error(f"An error occurred: {e}")
-                            st.error(traceback.format_exc())  # Print detailed error traceback for debugging
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
+                        st.error(traceback.format_exc())  # Print detailed error traceback for debugging
 
 if __name__ == '__main__':
     main()
