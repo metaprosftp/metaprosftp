@@ -58,9 +58,6 @@ if 'sftp_username' not in st.session_state:
 if 'title_prompt' not in st.session_state:
     st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
 
-if 'tags_prompt' not in st.session_state:
-    st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). The image contains")
-
 # Function to normalize and clean text
 def normalize_text(text):
     normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
@@ -70,29 +67,24 @@ def normalize_text(text):
 def generate_metadata(model, img):
     title_prompt = st.session_state['title_prompt']
 
-    # Generate title
-    title_response = model.generate_content([title_prompt, img])
-    title = title_response.text.strip()
+    caption = model.generate_content([title_prompt, img])
 
-    # Extract keywords from the title
-    keywords_prompt = f"The image contains {title}. Focus on keywords related to the subject, style, and context."
-    tags_response = model.generate_content([keywords_prompt])
-    keywords = re.findall(r'\w+', tags_response.text)
-    
-    # Converting keywords to lowercase
-    keywords = [word.lower() for word in keywords]
-    
-    # Limiting keywords to 49 words and removing duplicates
-    unique_keywords = list(set(keywords))[:49]
+    predefined_tags = [
+        "professional", "male", "young", "computer", "desktop", "modern", "home", "office",
+        "workspace", "technology", "work", "business", "employee", "productivity", "desk",
+        "monitor", "focus", "concentration", "internet", "digital", "typing", "screen",
+        "equipment", "furniture", "interior", "design", "contemporary", "stylish",
+        "entrepreneur", "freelance", "job", "task", "project", "career", "innovation",
+        "creative", "homeworking", "telecommuting", "professional", "workplace", "lifestyle",
+        "modernity", "efficiency", "comfortable", "ergonomic", "clean", "organized",
+        "minimalist", "remote"
+    ]
 
-    # Joining keywords with commas
-    trimmed_tags = ','.join(unique_keywords)
-    
     # Normalize tags
-    normalized_tags = normalize_text(trimmed_tags.strip())
-    
+    normalized_tags = normalize_text(','.join(predefined_tags).strip())
+
     return {
-        'Title': title,  # Title is already stripped of leading/trailing whitespace
+        'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
         'Tags': normalized_tags  # Normalized and trimmed tags
     }
 
