@@ -56,7 +56,7 @@ if 'sftp_username' not in st.session_state:
     st.session_state['sftp_username'] = "209940897"
 
 if 'title_prompt' not in st.session_state:
-    st.session_state['title_prompt'] = ("Generate a descriptive title for the uploaded image 12 words long. The title should highlight the main features of the image and suggest potential uses in various contexts. ")
+    st.session_state['title_prompt'] = ("Create a descriptive and accurate title in English, up to 12 words long. Ensure the title introduces the content clearly and is relevant, descriptive, and precise. Avoid formal sentence structures and the use of brand names, product names, or people's names. The title should highlight the main features of the image and suggest potential uses in various contexts. ")
 
 if 'tags_prompt' not in st.session_state:
     st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.")
