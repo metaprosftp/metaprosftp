@@ -80,19 +80,19 @@ def generate_metadata(model, img):
     # Converting keywords to lowercase
     keywords = [word.lower() for word in keywords]
     
-    # Removing duplicates and limiting to 49 words
+    # Removing duplicates and limiting to 35 words
     unique_keywords = list(set(keywords))
     
-    if len(unique_keywords) < 49:
+    if len(unique_keywords) < 35:
         additional_tags = model.generate_content([
-            f"Generate {49 - len(unique_keywords)} additional general and relevant keywords for the provided image.", 
+            f"Generate {35 - len(unique_keywords)} additional general and relevant keywords for the provided image.", 
             img
         ])
         additional_keywords = re.findall(r'\w+', additional_tags.text)
         unique_keywords.extend(additional_keywords)
     
-    # Limiting keywords to 49 words
-    unique_keywords = unique_keywords[:49]
+    # Limiting keywords to 35 words
+    unique_keywords = unique_keywords[:35]
 
     # Joining keywords with commas
     trimmed_tags = ','.join(unique_keywords)
