@@ -67,24 +67,31 @@ def normalize_text(text):
 def generate_metadata(model, img):
     title_prompt = st.session_state['title_prompt']
 
+    # Generate the title
     caption = model.generate_content([title_prompt, img])
+    title = caption.text.strip()
 
-    predefined_tags = [
-        "professional", "male", "young", "computer", "desktop", "modern", "home", "office",
-        "workspace", "technology", "work", "business", "employee", "productivity", "desk",
-        "monitor", "focus", "concentration", "internet", "digital", "typing", "screen",
-        "equipment", "furniture", "interior", "design", "contemporary", "stylish",
-        "entrepreneur", "freelance", "job", "task", "project", "career", "innovation",
-        "creative", "homeworking", "telecommuting", "professional", "workplace", "lifestyle",
-        "modernity", "efficiency", "comfortable", "ergonomic", "clean", "organized",
-        "minimalist", "remote"
-    ]
+    # Generate tags based on the title
+    tags_prompt = f"Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). The image contains {title}. Focus on keywords related to the subject, style, and context."
+    tags = model.generate_content([tags_prompt])
 
+    # Extracting keywords and ensuring they are single words
+    keywords = re.findall(r'\w+', tags.text)
+    
+    # Converting keywords to lowercase
+    keywords = [word.lower() for word in keywords]
+    
+    # Limiting keywords to 49 words and removing duplicates
+    unique_keywords = list(set(keywords))[:49]
+
+    # Joining keywords with commas
+    trimmed_tags = ','.join(unique_keywords)
+    
     # Normalize tags
-    normalized_tags = normalize_text(','.join(predefined_tags).strip())
-
+    normalized_tags = normalize_text(trimmed_tags.strip())
+    
     return {
-        'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
+        'Title': title,  # Strip leading/trailing whitespace from caption
         'Tags': normalized_tags  # Normalized and trimmed tags
     }
 
