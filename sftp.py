@@ -84,7 +84,7 @@ def generate_metadata(model, img):
 
     return {
         'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
-        'Tags': caption.text.strip()
+        'Tags': tags.text
     }
 
 # Function to embed metadata into images
