@@ -17,3 +17,4 @@ pydrive
 pytz
 pydrive2
 uuid
+openai
