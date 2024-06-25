@@ -1,3 +1,4 @@
+
 import streamlit as st
 import os
 import tempfile
@@ -17,7 +18,6 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import paramiko
-import openai
 
 # Set the timezone to UTC+7 Jakarta
 JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
@@ -56,39 +56,43 @@ if 'api_key' not in st.session_state:
 if 'sftp_username' not in st.session_state:
     st.session_state['sftp_username'] = "209940897"
 
-if 'openai_api_key' not in st.session_state:
-    st.session_state['openai_api_key'] = None
+if 'title_prompt' not in st.session_state:
+    st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
+
+if 'tags_prompt' not in st.session_state:
+    st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.")
 
 # Function to normalize and clean text
 def normalize_text(text):
     normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
     return normalized
 
-# Function to generate metadata for images using AI models
-def generate_metadata(genai_model, openai_api_key, img):
+# Function to generate metadata for images using AI model
+def generate_metadata(model, img):
     title_prompt = st.session_state['title_prompt']
+    tags_prompt = st.session_state['tags_prompt']
 
-    # Generate title using Gemini model
-    title_response = genai_model.generate_content([title_prompt, img])
-    title = title_response.text.strip()
+    caption = model.generate_content([title_prompt, img])
+    tags = model.generate_content([tags_prompt, img])
 
-    # Generate keywords using ChatGPT
-    openai.api_key = openai_api_key
-    keywords_prompt = (f"Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). "
-                       f"The image contains {title}. Focus on keywords related to the subject, style, and context.")
-    chatgpt_response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=keywords_prompt,
-        max_tokens=100
-    )
-    keywords = chatgpt_response.choices[0].text.strip()
+    # Extracting keywords and ensuring they are single words
+    keywords = re.findall(r'\w+', tags.text)
+    
+    # Converting keywords to lowercase
+    keywords = [word.lower() for word in keywords]
+    
+    # Limiting keywords to 49 words and removing duplicates
+    unique_keywords = list(set(keywords))[:49]
 
+    # Joining keywords with commas
+    trimmed_tags = ','.join(unique_keywords)
+    
     # Normalize tags
-    normalized_tags = normalize_text(keywords)
-
+    normalized_tags = normalize_text(trimmed_tags.strip())
+    
     return {
-        'Title': title,
-        'Tags': normalized_tags
+        'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
+        'Tags': normalized_tags  # Normalized and trimmed tags
     }
 
 # Function to embed metadata into images
@@ -268,13 +272,6 @@ def main():
         if api_key:
             st.session_state['api_key'] = api_key
 
-        # OpenAI API Key input
-        openai_api_key = st.text_input('Enter your OpenAI API Key', value=st.session_state['openai_api_key'] or '')
-
-        # Save OpenAI API key in session state
-        if openai_api_key:
-            st.session_state['openai_api_key'] = openai_api_key
-
         # SFTP Username input
         sftp_username = st.text_input('SFTP Username', value=st.session_state['sftp_username'])
 
@@ -284,6 +281,14 @@ def main():
 
         # SFTP Password input
         sftp_password = st.text_input('SFTP Password', type='password')
+
+        # Commented out the Title and tags prompts input
+        # title_prompt = st.text_area('Title Prompt', value=st.session_state['title_prompt'], height=100)
+        # tags_prompt = st.text_area('Tags Prompt', value=st.session_state['tags_prompt'], height=100)
+
+        # Save prompts in session state
+        # st.session_state['title_prompt'] = title_prompt
+        # st.session_state['tags_prompt'] = tags_prompt
 
         # Upload image files
         uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
@@ -342,7 +347,7 @@ def main():
                                     img = Image.open(image_path)
 
                                     # Generate metadata
-                                    metadata = generate_metadata(model, openai_api_key, img)
+                                    metadata = generate_metadata(model, img)
 
                                     # Embed metadata
                                     updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
