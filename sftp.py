@@ -50,7 +50,7 @@ if 'sftp_username' not in st.session_state:
     st.session_state['sftp_username'] = "209940897"
 
 if 'title_prompt' not in st.session_state:
-    st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
+    st.session_state['title_prompt'] = ("Create a descriptive and accurate title in English, up to 12 words long. Ensure the title introduces the content clearly and is relevant, descriptive, and precise. Avoid formal sentence structures and the use of brand names, product names, or people's names. The title should highlight the main features of the image and suggest potential uses in various contexts.")
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
