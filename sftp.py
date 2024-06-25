@@ -4,18 +4,12 @@ import tempfile
 from PIL import Image
 import google.generativeai as genai
 import iptcinfo3
-import zipfile
 import time
 import traceback
 import re
 import unicodedata
 from datetime import datetime, timedelta
 import pytz
-import json
-import unicodedata
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 import paramiko
 
 # Set the timezone to UTC+7 Jakarta
@@ -72,7 +66,14 @@ def generate_metadata(model, img):
     # Generate the tags
     tags_response = model.generate_content([tags_prompt, img])
     tags_text = tags_response.text
-    
+
+    # Prepare metadata dictionary
+    metadata = {
+        'Title': title,
+        'Tags': tags_text.split(',')
+    }
+    return metadata
+
 # Function to embed metadata into images
 def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
     try:
@@ -90,8 +91,8 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
             iptc_data._data[tag] = []
 
         # Update IPTC data with new metadata
-        iptc_data['keywords'] = [metadata.get('Tags', '')]  # Keywords
-        iptc_data['caption/abstract'] = [metadata.get('Title', '')]  # Title
+        iptc_data['keywords'] = metadata.get('Tags', [])  # Keywords
+        iptc_data['caption/abstract'] = metadata.get('Title', '')  # Title
 
         # Save the image with the embedded metadata
         iptc_data.save()
@@ -328,12 +329,13 @@ def main():
                                     metadata = generate_metadata(model, img)
 
                                     # Embed metadata
-                                    updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
-                                    
-                                    # Upload via SFTP
-                                    if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_username, sftp_password, upload_progress_placeholder, files_processed, total_files)
-                                        files_processed += 1
+                                    if metadata:
+                                        updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
+                                        
+                                        # Upload via SFTP
+                                        if updated_image_path:
+                                            sftp_upload(updated_image_path, sftp_username, sftp_password, upload_progress_placeholder, files_processed, total_files)
+                                            files_processed += 1
 
                                 except Exception as e:
                                     st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
