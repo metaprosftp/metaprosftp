@@ -61,7 +61,7 @@ def generate_metadata(model, img):
     title = title_response.text.strip()  # Strip leading/trailing whitespace from title
 
     # Define the prompt for generating tags based on the generated title
-    tags_prompt = f"Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). The image contains \"{title}\"."
+    tags_prompt = f"Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). The image contains \"{title}\, Focus on keywords related to the Subject Matter, Key Concepts, Contextual Keywords, Contextual Keywords, Related Terms, Audience and Perspective, Industry or Field-Specific Terms"."
 
     # Generate the tags
     tags_response = model.generate_content([tags_prompt, img])
