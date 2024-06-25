@@ -1,15 +1,22 @@
+
 import streamlit as st
 import os
 import tempfile
 from PIL import Image
 import google.generativeai as genai
 import iptcinfo3
+import zipfile
 import time
 import traceback
 import re
 import unicodedata
 from datetime import datetime, timedelta
 import pytz
+import json
+import unicodedata
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
 import paramiko
 
 # Set the timezone to UTC+7 Jakarta
@@ -50,29 +57,35 @@ if 'sftp_username' not in st.session_state:
     st.session_state['sftp_username'] = "209940897"
 
 if 'title_prompt' not in st.session_state:
-    st.session_state['title_prompt'] = ("Create a descriptive and accurate title in English, up to 12 words long. Ensure the title introduces the content clearly and is relevant, descriptive, and precise. Avoid formal sentence structures and the use of brand names, product names, or people's names. The title should highlight the main features of the image and suggest potential uses in various contexts.")
+    st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
+
+if 'tags_prompt' not in st.session_state:
+    st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.")
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
     title_prompt = st.session_state['title_prompt']
+    tags_prompt = st.session_state['tags_prompt']
 
-    # Generate the title
-    title_response = model.generate_content([title_prompt, img])
-    title = title_response.text.strip()  # Strip leading/trailing whitespace from title
+    caption = model.generate_content([title_prompt, img])
+    tags = model.generate_content([tags_prompt, img])
 
-    # Define the prompt for generating tags based on the generated title
-    tags_prompt = f"Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). The image contains \"{title}\, Focus on keywords related to the Subject, Concepts, Context, Theme, Emotion, Audience, Visual Elements, Purpose. Avoid formal sentence structures and the use of brand names, product names, or people's names. "
+    # Extracting keywords and ensuring they are single words
+    keywords = re.findall(r'\w+', tags.text)
+    
+    # Converting keywords to lowercase
+    keywords = [word.lower() for word in keywords]
+    
+    # Limiting keywords to 49 words and removing duplicates
+    unique_keywords = list(set(keywords))[:49]
 
-    # Generate the tags
-    tags_response = model.generate_content([tags_prompt, img])
-    tags_text = tags_response.text
+    # Joining keywords with commas
+    trimmed_tags = ','.join(unique_keywords)
 
-    # Prepare metadata dictionary
-    metadata = {
-        'Title': title,
-        'Tags': tags_text.split(',')
+    return {
+        'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
+        'Tags': caption.text.strip()
     }
-    return metadata
 
 # Function to embed metadata into images
 def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
@@ -91,8 +104,8 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
             iptc_data._data[tag] = []
 
         # Update IPTC data with new metadata
-        iptc_data['keywords'] = metadata.get('Tags', [])  # Keywords
-        iptc_data['caption/abstract'] = metadata.get('Title', '')  # Title
+        iptc_data['keywords'] = [metadata.get('Tags', '')]  # Keywords
+        iptc_data['caption/abstract'] = [metadata.get('Title', '')]  # Title
 
         # Save the image with the embedded metadata
         iptc_data.save()
@@ -329,13 +342,12 @@ def main():
                                     metadata = generate_metadata(model, img)
 
                                     # Embed metadata
-                                    if metadata:
-                                        updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
-                                        
-                                        # Upload via SFTP
-                                        if updated_image_path:
-                                            sftp_upload(updated_image_path, sftp_username, sftp_password, upload_progress_placeholder, files_processed, total_files)
-                                            files_processed += 1
+                                    updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
+                                    
+                                    # Upload via SFTP
+                                    if updated_image_path:
+                                        sftp_upload(updated_image_path, sftp_username, sftp_password, upload_progress_placeholder, files_processed, total_files)
+                                        files_processed += 1
 
                                 except Exception as e:
                                     st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
