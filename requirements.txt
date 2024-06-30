@@ -18,4 +18,3 @@ pytz
 pydrive2
 uuid
 openai
-streamlit-cookies-manager
