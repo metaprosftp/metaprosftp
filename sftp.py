@@ -336,9 +336,15 @@ def main():
                             # Progress placeholder for SFTP upload
                             upload_progress_placeholder = st.empty()
 
+                            # Delay sequence
+                            delay_sequence = [2, 4, 7, 3, 6]
+
                             # Process each image one by one
-                            for image_path in image_paths:
+                            for index, image_path in enumerate(image_paths):
                                 try:
+                                    # Introduce delay based on the delay sequence
+                                    time.sleep(delay_sequence[index % len(delay_sequence)])
+
                                     # Open image
                                     img = Image.open(image_path)
 
