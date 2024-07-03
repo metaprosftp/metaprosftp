@@ -16,7 +16,6 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import paramiko
-from google.api_core.exceptions import InternalServerError, RetryError
 
 # Set the timezone to UTC+7 Jakarta
 JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
@@ -52,47 +51,30 @@ if 'upload_count' not in st.session_state:
 if 'api_key' not in st.session_state:
     st.session_state['api_key'] = None
 
-if 'sftp_username' not in st.session_state:
-    st.session_state['sftp_username'] = "209940897"
-
-if 'title_prompt' not in st.session_state:
-    st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
-
-if 'tags_prompt' not in st.session_state:
-    st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.")
+# Function to normalize and clean text
+def normalize_text(text):
+    normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
+    return normalized
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
-    title_prompt = st.session_state['title_prompt']
-    tags_prompt = st.session_state['tags_prompt']
+    caption = model.generate_content(["Generate a descriptive title in English up to 12 words long, identifying the main elements of the image. Describe the primary subjects, objects, activities, and context. Refine the title to include relevant keywords for SEO and ensure it is engaging and informative, but avoid mentioning human names, brand names, product names, or company names.", img])
+    tags = model.generate_content(["Generate up to 45 keywords in English that are relevant to the image (Ensure each keyword is a single word, separated by commas).", img])
 
-    try:
-        caption = model.generate_content([title_prompt, img])
-        tags = model.generate_content([tags_prompt, img])
-    except (InternalServerError, RetryError) as e:
-        st.error(f"An error occurred while generating metadata: {e}")
-        st.error(traceback.format_exc())
-        return None
-
-    # Extracting keywords and ensuring they are single words
-    keywords = re.findall(r'\w+', tags.text)
+    # Filter out undesirable characters from the generated tags
+    filtered_tags = re.sub(r'[^\w\s,]', '', tags.text)
     
-    # Converting keywords to lowercase
-    keywords = [word.lower() for word in keywords]
+    # Trim the generated keywords if they exceed 49 words
+    keywords = filtered_tags.split(',')[:49]  # Limit to 49 words
+    trimmed_tags = ','.join(keywords)
     
-    # Limiting keywords to 49 words and removing duplicates
-    unique_keywords = list(set(keywords))[:49]
-
-    # Joining keywords with commas
-    trimmed_tags = ','.join(unique_keywords)
-
     return {
-        'Title': caption.text.strip(),  # Strip leading/trailing whitespace from caption
-        'Tags': tags.text
+        'Title': caption.text.strip(),  # Remove leading/trailing whitespace
+        'Tags': trimmed_tags.strip()
     }
 
 # Function to embed metadata into images
-def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
+def embed_metadata(image_path, metadata, progress_bar, files_processed, total_files):
     try:
         # Simulate delay
         time.sleep(1)
@@ -114,9 +96,10 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
         # Save the image with the embedded metadata
         iptc_data.save()
 
-        # Update progress text
+        # Update progress bar
         files_processed += 1
-        progress_placeholder.text(f"Processing images to generate titles, tags, and embed metadata {files_processed}/{total_files}")
+        progress_bar.progress(files_processed / total_files)
+        progress_bar.text(f"Embedding metadata for image {files_processed}/{total_files}")
 
         # Return the updated image path for further processing
         return image_path
@@ -125,10 +108,11 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
         st.error(f"An error occurred while embedding metadata: {e}")
         st.error(traceback.format_exc())  # Print detailed error traceback for debugging
 
-def sftp_upload(image_path, sftp_username, sftp_password, progress_placeholder, files_processed, total_files):
+def sftp_upload(image_paths, sftp_password, progress_placeholder):
     # SFTP connection details
     sftp_host = "sftp.contributor.adobestock.com"
     sftp_port = 22
+    sftp_username = "209940897"
 
     # Initialize SFTP connection
     transport = paramiko.Transport((sftp_host, sftp_port))
@@ -136,9 +120,10 @@ def sftp_upload(image_path, sftp_username, sftp_password, progress_placeholder, 
     sftp = paramiko.SFTPClient.from_transport(transport)
 
     try:
-        filename = os.path.basename(image_path)
-        sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
-        progress_placeholder.text(f"Uploaded {files_processed + 1}/{total_files} files to SFTP server.")
+        for i, image_path in enumerate(image_paths, start=1):
+            filename = os.path.basename(image_path)
+            sftp.put(image_path, f"/your/remote/directory/path/{filename}")  # Replace with your remote directory path
+            progress_placeholder.text(f"Uploaded {i}/{len(image_paths)} files to SFTP server.")
 
     except Exception as e:
         st.error(f"Error during SFTP upload: {e}")
@@ -191,13 +176,7 @@ def main():
                 st.error("Invalid username or password.")
         return
 
-    # Display "About" button at the top
-    if st.button("About"):
-        st.markdown("""
-        ### Why Choose MetaPro?
-        """)
-
-    # Check logout at the end
+    # Display logout button
     if st.button("Logout"):
         st.session_state['logged_in'] = False
         set_lock("")
@@ -233,7 +212,7 @@ def main():
             validation_key = st.text_input('License Key', type='password')
 
     # Check if validation key is correct
-    correct_key = "31days"
+    correct_key = "A1B2-C3D4-E5F6-G7H8"
 
     if not st.session_state['license_validated'] and validation_key:
         if validation_key == correct_key:
@@ -245,7 +224,7 @@ def main():
             st.error("Invalid validation key. Please enter the correct key.")
 
     if st.session_state['license_validated']:
-        # Read start date from license file
+        # Check the license file for the start date
         with open(license_file, 'r') as file:
             start_date_str = file.read().strip()
             start_date = datetime.fromisoformat(start_date_str)
@@ -263,28 +242,13 @@ def main():
 
         # API Key input
         api_key = st.text_input('Enter your API Key', value=st.session_state['api_key'] or '')
-
+        
         # Save API key in session state
         if api_key:
             st.session_state['api_key'] = api_key
-
-        # SFTP Username input
-        sftp_username = st.text_input('SFTP Username', value=st.session_state['sftp_username'])
-
-        # Save SFTP username in session state
-        if sftp_username:
-            st.session_state['sftp_username'] = sftp_username
-
+            
         # SFTP Password input
-        sftp_password = st.text_input('SFTP Password', type='password')
-
-        # Commented out the Title and tags prompts input
-        # title_prompt = st.text_area('Title Prompt', value=st.session_state['title_prompt'], height=100)
-        # tags_prompt = st.text_area('Tags Prompt', value=st.session_state['tags_prompt'], height=100)
-
-        # Save prompts in session state
-        # st.session_state['title_prompt'] = title_prompt
-        # st.session_state['tags_prompt'] = tags_prompt
+        sftp_password = st.text_input('SFTP Password', type='password')   
 
         # Upload image files
         uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
@@ -305,7 +269,7 @@ def main():
                                 'date': current_date.date(),
                                 'count': 0
                             }
-
+                        
                         # Check if remaining uploads are available
                         if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
                             remaining_uploads = 1000 - st.session_state['upload_count']['count']
@@ -328,45 +292,45 @@ def main():
                                     f.write(file.read())
                                 image_paths.append(temp_image_path)
 
-                            total_files = len(image_paths)
-                            files_processed = 0
-
-                            # Progress placeholder for embedding metadata
-                            embed_progress_placeholder = st.empty()
-                            # Progress placeholder for SFTP upload
-                            upload_progress_placeholder = st.empty()
-
-                            # Delay sequence
-                            delay_sequence = [2, 4, 7, 3, 6]
-
-                            # Process each image one by one
-                            for index, image_path in enumerate(image_paths):
+                            # Process each image and generate titles and tags using AI
+                            metadata_list = []
+                            process_placeholder = st.empty()
+                            for i, image_path in enumerate(image_paths):
+                                process_placeholder.text(f"Processing Generate Titles and Tags {i + 1}/{len(image_paths)}")
                                 try:
-                                    # Introduce delay based on the delay sequence
-                                    time.sleep(delay_sequence[index % len(delay_sequence)])
-
-                                    # Open image
                                     img = Image.open(image_path)
-
-                                    # Generate metadata
                                     metadata = generate_metadata(model, img)
-                                    if metadata is None:
-                                        continue
-
-                                    # Embed metadata
-                                    updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
-                                    
-                                    # Upload via SFTP
-                                    if updated_image_path:
-                                        sftp_upload(updated_image_path, sftp_username, sftp_password, upload_progress_placeholder, files_processed, total_files)
-                                        files_processed += 1
-
+                                    metadata_list.append(metadata)
                                 except Exception as e:
-                                    st.error(f"An error occurred while processing {os.path.basename(image_path)}: {e}")
+                                    st.error(f"An error occurred while generating metadata for {os.path.basename(image_path)}: {e}")
                                     st.error(traceback.format_exc())
                                     continue
 
-                            st.success(f"Successfully processed and transferred {files_processed} files to the SFTP server.")
+                            # Embed metadata into images
+                            total_files = len(image_paths)
+                            files_processed = 0
+
+                            # Display the progress bar and current file number
+                            progress_placeholder = st.empty()
+                            progress_bar = progress_placeholder.progress(0)
+                            progress_placeholder.text(f"Processing images 0/{total_files}")
+
+                            processed_image_paths = []
+                            for i, (image_path, metadata) in enumerate(zip(image_paths, metadata_list)):
+                                process_placeholder.text(f"Embedding metadata for image {i + 1}/{len(image_paths)}")
+                                updated_image_path = embed_metadata(image_path, metadata, progress_bar, files_processed, total_files)
+                                if updated_image_path:
+                                    processed_image_paths.append(updated_image_path)
+                                    files_processed += 1
+                                    # Update progress bar and current file number
+                                    progress_bar.progress(files_processed / total_files)
+
+                            # Upload processed images via SFTP
+                            if processed_image_paths:
+                                st.write("Uploading processed images via SFTP...")
+                                sftp_upload(processed_image_paths, sftp_password, progress_placeholder)
+
+                                st.success(f"Uploaded {len(processed_image_paths)} files to SFTP server.")
 
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
