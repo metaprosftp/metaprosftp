@@ -1,4 +1,3 @@
-
 import streamlit as st
 import os
 import tempfile
@@ -13,11 +12,11 @@ import unicodedata
 from datetime import datetime, timedelta
 import pytz
 import json
-import unicodedata
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import paramiko
+from google.api_core.exceptions import InternalServerError, RetryError
 
 # Set the timezone to UTC+7 Jakarta
 JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
@@ -67,8 +66,13 @@ def generate_metadata(model, img):
     title_prompt = st.session_state['title_prompt']
     tags_prompt = st.session_state['tags_prompt']
 
-    caption = model.generate_content([title_prompt, img])
-    tags = model.generate_content([tags_prompt, img])
+    try:
+        caption = model.generate_content([title_prompt, img])
+        tags = model.generate_content([tags_prompt, img])
+    except (InternalServerError, RetryError) as e:
+        st.error(f"An error occurred while generating metadata: {e}")
+        st.error(traceback.format_exc())
+        return None
 
     # Extracting keywords and ensuring they are single words
     keywords = re.findall(r'\w+', tags.text)
@@ -340,6 +344,8 @@ def main():
 
                                     # Generate metadata
                                     metadata = generate_metadata(model, img)
+                                    if metadata is None:
+                                        continue
 
                                     # Embed metadata
                                     updated_image_path = embed_metadata(image_path, metadata, embed_progress_placeholder, files_processed, total_files)
