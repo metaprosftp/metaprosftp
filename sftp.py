@@ -66,8 +66,8 @@ def generate_metadata(model, img, start_time):
     # Check elapsed time and pause if necessary
     elapsed_time = time.time() - start_time
     if elapsed_time > 10:
-        st.info("Pausing for 5 seconds...")
-        time.sleep(5)
+       #  st.info("Pausing for 5 seconds...")
+        time.sleep(8)
         start_time = time.time()  # Reset the start time after pausing
 
     tags = model.generate_content([
@@ -78,7 +78,7 @@ def generate_metadata(model, img, start_time):
     # Check elapsed time and pause if necessary
     elapsed_time = time.time() - start_time
     if elapsed_time > 10:
-        st.info("Pausing for 5 seconds...")
+       # st.info("Pausing for 5 seconds...")
         time.sleep(5)
         start_time = time.time()  # Reset the start time after pausing
 
