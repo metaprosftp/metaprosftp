@@ -325,6 +325,11 @@ def main():
                                     # Update progress bar and current file number
                                     progress_bar.progress(files_processed / total_files)
 
+                                    # Pause for 5 seconds after every 10 images
+                                    if (i + 1) % 10 == 0:
+                                        st.info("Pausing for 5 seconds...")
+                                        time.sleep(5)
+
                             # Upload processed images via SFTP
                             if processed_image_paths:
                                 st.write("Uploading processed images via SFTP...")
