@@ -17,4 +17,5 @@ pydrive
 pytz
 pydrive2
 uuid
-openai
+google-api-core
+google-cloud
