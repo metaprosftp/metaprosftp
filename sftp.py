@@ -18,8 +18,8 @@ def normalize_text(text):
     normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
     return normalized
 
-def embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files):
-    """Embed metadata into the image."""
+def embed_metadata(image_path, metadata, new_filename, progress_placeholder, files_processed, total_files):
+    """Embed metadata into the image and rename it."""
     try:
         time.sleep(1)
 
@@ -40,16 +40,19 @@ def embed_metadata(image_path, metadata, progress_placeholder, files_processed, 
         # Save the image with the embedded metadata
         iptc_data.save()
 
+        # Rename the file
+        renamed_path = os.path.join(os.path.dirname(image_path), new_filename)
+        os.rename(image_path, renamed_path)
+
         # Update progress text
         files_processed += 1
         progress_placeholder.text(f"Processing images... {files_processed}/{total_files}")
 
-        return image_path
+        return renamed_path
 
     except Exception as e:
         st.error(f"An error occurred while embedding metadata: {e}")
         st.error(traceback.format_exc())
-
 
 def main():
     """Main function for the Streamlit app."""
@@ -85,7 +88,7 @@ def main():
                     # Create a temporary directory for processing
                     with tempfile.TemporaryDirectory() as temp_dir:
                         image_paths = []
-                        for file in uploaded_files:
+                        for idx, file in enumerate(uploaded_files):
                             temp_image_path = os.path.join(temp_dir, file.name)
                             with open(temp_image_path, 'wb') as f:
                                 f.write(file.read())
@@ -99,12 +102,13 @@ def main():
 
                         # Process and embed metadata
                         processed_files = []
-                        for image_path in image_paths:
+                        for idx, image_path in enumerate(image_paths):
                             metadata = {
                                 'Title': normalize_text(title_input),
                                 'Tags': normalize_text(tags_input)
                             }
-                            updated_image_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
+                            new_filename = f"{normalize_text(title_input)}_{idx + 1}.jpg"
+                            updated_image_path = embed_metadata(image_path, metadata, new_filename, progress_placeholder, files_processed, total_files)
                             if updated_image_path:
                                 processed_files.append(updated_image_path)
 
