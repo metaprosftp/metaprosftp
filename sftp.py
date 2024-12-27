@@ -2,7 +2,6 @@ import streamlit as st
 import os
 import tempfile
 from PIL import Image
-import google.generativeai as genai
 import iptcinfo3
 import re
 import time
@@ -40,33 +39,6 @@ if 'upload_count' not in st.session_state:
     st.session_state['upload_count'] = {
         'date': None,
         'count': 0
-    }
-
-if 'api_key' not in st.session_state:
-    st.session_state['api_key'] = None
-
-if 'title_prompt' not in st.session_state:
-    st.session_state['title_prompt'] = ("Create a descriptive title in English up to 12 words long. Ensure the keywords accurately reflect the subject matter, context, and main elements of the image, using precise terms that capture unique aspects like location, activity, or theme for specificity. Maintain variety and consistency in keywords relevant to the image content. Avoid using brand names or copyrighted elements in the title.")
-
-if 'tags_prompt' not in st.session_state:
-    st.session_state['tags_prompt'] = ("Generate up to 49 keywords relevant to the image (each keyword must be one word, separated by commas). Avoid using brand names or copyrighted elements in the keywords.")
-
-# Function to generate metadata for images using AI model
-def generate_metadata(model, img):
-    title_prompt = st.session_state['title_prompt']
-    tags_prompt = st.session_state['tags_prompt']
-
-    caption = model.generate_content([title_prompt, img])
-    tags = model.generate_content([tags_prompt, img])
-
-    keywords = re.findall(r'\w+', tags.text)
-    keywords = [word.lower() for word in keywords]
-    unique_keywords = list(set(keywords))[:49]
-    trimmed_tags = ','.join(unique_keywords)
-
-    return {
-        'Title': caption.text.strip(),
-        'Tags': trimmed_tags
     }
 
 # Function to embed metadata into images
@@ -189,10 +161,8 @@ def main():
             days_remaining = (expiration_date - current_date).days
             st.success(f"License valid. You have {days_remaining} days remaining.")
 
-        api_key = st.text_input('Enter your API Key', value=st.session_state['api_key'] or '')
-
-        if api_key:
-            st.session_state['api_key'] = api_key
+        title = st.text_input('Enter Title (up to 12 words)')
+        tags = st.text_input('Enter Keywords (comma-separated, up to 49)')
 
         uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG supported)', accept_multiple_files=True)
 
@@ -220,9 +190,6 @@ def main():
                             st.session_state['upload_count']['count'] += len(valid_files)
                             st.success(f"Uploads successful. Remaining uploads for today: {1000 - st.session_state['upload_count']['count']}")
 
-                        genai.configure(api_key=api_key)
-                        model = genai.GenerativeModel('gemini-pro-vision')
-
                         with tempfile.TemporaryDirectory() as temp_dir:
                             image_paths = []
                             for file in valid_files:
@@ -237,8 +204,10 @@ def main():
 
                             for image_path in image_paths:
                                 try:
-                                    img = Image.open(image_path)
-                                    metadata = generate_metadata(model, img)
+                                    metadata = {
+                                        'Title': title,
+                                        'Tags': tags
+                                    }
                                     embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
                                     files_processed += 1
 
