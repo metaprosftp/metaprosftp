@@ -132,20 +132,7 @@ def main():
                 start_date_str = file.read().strip()
                 start_date = datetime.fromisoformat(start_date_str)
                 st.session_state['license_validated'] = True
-        else:
-            validation_key = st.text_input('License Key', type='password')
-
-    correct_key = "31days"
-
-    if not st.session_state['license_validated'] and validation_key:
-        if validation_key == correct_key:
-            st.session_state['license_validated'] = True
-            start_date = datetime.now(JAKARTA_TZ)
-            with open(license_file, 'w') as file:
-                file.write(start_date.isoformat())
-        else:
-            st.error("Invalid validation key. Please enter the correct key.")
-
+    
     if st.session_state['license_validated']:
         with open(license_file, 'r') as file:
             start_date_str = file.read().strip()
@@ -201,6 +188,7 @@ def main():
                             total_files = len(image_paths)
                             files_processed = 0
                             progress_placeholder = st.empty()
+                            processed_files = []
 
                             for image_path in image_paths:
                                 try:
@@ -208,7 +196,8 @@ def main():
                                         'Title': title,
                                         'Tags': tags
                                     }
-                                    embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
+                                    processed_file_path = embed_metadata(image_path, metadata, progress_placeholder, files_processed, total_files)
+                                    processed_files.append(processed_file_path)
                                     files_processed += 1
 
                                 except Exception as e:
@@ -217,6 +206,11 @@ def main():
                                     continue
 
                             st.success(f"Successfully processed {files_processed} files.")
+
+                            for processed_file in processed_files:
+                                with open(processed_file, 'rb') as f:
+                                    file_name = os.path.basename(processed_file)
+                                    st.download_button(label=f"Download {file_name}", data=f, file_name=file_name)
 
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
