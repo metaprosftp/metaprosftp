@@ -2,7 +2,6 @@ import streamlit as st
 import os
 import tempfile
 from PIL import Image
-import pip install --upgrade iptcinfo3
 import iptcinfo3
 import zipfile
 import time
