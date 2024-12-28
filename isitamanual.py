@@ -2,40 +2,43 @@ import os
 import streamlit as st
 import google.generativeai as genai
 
-# Konfigurasi API
-genai.configure(api_key=os.environ.get("AIzaSyDboqGrsG04ifpcwvDoXuylYKJKnPFFptk"))
+# Configuring the API key securely
+api_key = os.environ.get("AIzaSyDboqGrsG04ifpcwvDoXuylYKJKnPFFptk")
+if not api_key:
+    st.error("API key not found. Please set the 'GENAI_API_KEY' environment variable.")
+    st.stop()
 
-# Konfigurasi model
+genai.configure(api_key=api_key)
+
+# Generation configuration
 generation_config = {
     "temperature": 1,
     "top_p": 0.95,
     "top_k": 40,
     "max_output_tokens": 8192,
-    "response_mime_type": "text/plain",
 }
 
-# Inisialisasi model
-model = genai.GenerativeModel(
-    model_name="gemini-1.5-flash",
-    generation_config=generation_config,
-)
-
-# Header aplikasi
+# Streamlit app header
 st.title("Generative AI Chat with Gemini")
 st.write("Powered by Google Generative AI")
 
-# Input pengguna
+# User input
 user_input = st.text_area("Enter your message here:", placeholder="Type your input...")
 
-# Tombol untuk mengirim pesan
+# Send button
 if st.button("Send"):
     if user_input.strip() == "":
         st.warning("Please enter a valid input.")
     else:
-        # Mulai sesi chat
-        chat_session = model.start_chat(history=[])
-        response = chat_session.send_message(user_input)
-        
-        # Tampilkan hasil
-        st.subheader("Response:")
-        st.write(response.text)
+        try:
+            # Generate a response
+            response = genai.generate_text(
+                prompt=user_input,
+                **generation_config
+            )
+            
+            # Display the response
+            st.subheader("Response:")
+            st.write(response.text)
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
