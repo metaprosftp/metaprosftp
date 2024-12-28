@@ -18,6 +18,7 @@ from googleapiclient.http import MediaFileUpload
 
 st.set_option("client.showSidebarNavigation", False)
 
+# Redirect to app.py if not logged in, otherwise show the navigation menu
 
 # Apply custom styling
 st.markdown("""
@@ -30,7 +31,7 @@ st.markdown("""
             height: 10vh;
         }
     </style>
-""", unsafe_allow_html=True)
+    """, unsafe_allow_html=True)
 
 # Set the timezone to UTC+7 Jakarta
 JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
@@ -60,11 +61,11 @@ def generate_metadata(model, img):
 
     # Filter out undesirable characters from the generated tags
     filtered_tags = re.sub(r'[^\w\s,]', '', tags.text)
-
+    
     # Trim the generated keywords if they exceed 49 words
     keywords = filtered_tags.split(',')[:49]  # Limit to 49 words
     trimmed_tags = ','.join(keywords)
-
+    
     return {
         'Title': caption.text.strip(),  # Remove leading/trailing whitespace
         'Tags': trimmed_tags.strip()
@@ -105,7 +106,6 @@ def embed_metadata(image_path, metadata, progress_bar, files_processed, total_fi
         st.error(f"An error occurred while embedding metadata: {e}")
         st.error(traceback.format_exc())  # Print detailed error traceback for debugging
 
-# Function to zip processed images
 def zip_processed_images(image_paths):
     try:
         zip_file_path = os.path.join(tempfile.gettempdir(), 'processed_images.zip')
@@ -115,24 +115,31 @@ def zip_processed_images(image_paths):
                 zipf.write(image_path, arcname=os.path.basename(image_path))
 
         return zip_file_path
+
     except Exception as e:
         st.error(f"An error occurred while zipping images: {e}")
         st.error(traceback.format_exc())
         return None
 
-# Function to save zip file to a temporary directory
-def upload_to_temp(zip_file_path):
+def upload_to_drive(zip_file_path, credentials):
     try:
-        # Just save the zip file to the temp directory
-        temp_directory = tempfile.gettempdir()
-        temp_zip_path = os.path.join(temp_directory, 'processed_images.zip')
+        service = build('drive', 'v3', credentials=credentials)
+        file_metadata = {
+            'name': os.path.basename(zip_file_path),
+            'mimeType': 'application/zip'
+        }
+        media = MediaFileUpload(zip_file_path, mimetype='application/zip', resumable=True)
+        file = service.files().create(body=file_metadata, media_body=media, fields='id,webViewLink').execute()
 
-        # Move the file to the temporary directory
-        os.rename(zip_file_path, temp_zip_path)
+        # Make the file publicly accessible
+        service.permissions().create(
+            fileId=file['id'],
+            body={'type': 'anyone', 'role': 'reader'}
+        ).execute()
 
-        return temp_zip_path
+        return file.get('webViewLink')
     except Exception as e:
-        st.error(f"An error occurred while saving to temporary directory: {e}")
+        st.error(f"An error occurred while uploading to Google Drive: {e}")
         st.error(traceback.format_exc())
         return None
 
@@ -140,13 +147,15 @@ def main():
     """Main function for the Streamlit app."""
 
     # Display WhatsApp chat link
-    st.markdown("""<div style="text-align: center; margin-top: 20px;">
+    st.markdown("""
+    <div style="text-align: center; margin-top: 20px;">
         <a href="https://wa.me/6285328007533" target="_blank">
             <button style="background-color: #1976d2; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
                 MetaPro
             </button>
         </a>
-    </div>""", unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
     # Check if license has already been validated
     license_file = "license.txt"
@@ -160,17 +169,17 @@ def main():
             # License key input
             validation_key = st.text_input('License Key', type='password')
 
-        # Check if validation key is correct
-        correct_key = "dian12345"
+    # Check if validation key is correct
+    correct_key = "dian12345"
 
-        if not st.session_state['license_validated'] and validation_key:
-            if validation_key == correct_key:
-                st.session_state['license_validated'] = True
-                start_date = datetime.now(JAKARTA_TZ)
-                with open(license_file, 'w') as file:
-                    file.write(start_date.isoformat())
-            else:
-                st.error("Invalid validation key. Please enter the correct key.")
+    if not st.session_state['license_validated'] and validation_key:
+        if validation_key == correct_key:
+            st.session_state['license_validated'] = True
+            start_date = datetime.now(JAKARTA_TZ)
+            with open(license_file, 'w') as file:
+                file.write(start_date.isoformat())
+        else:
+            st.error("Invalid validation key. Please enter the correct key.")
 
     if st.session_state['license_validated']:
         # Check the license file for the start date
@@ -215,7 +224,7 @@ def main():
                                 'date': current_date.date(),
                                 'count': 0
                             }
-
+                        
                         # Check if remaining uploads are available
                         if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
                             remaining_uploads = 1000 - st.session_state['upload_count']['count']
@@ -277,17 +286,17 @@ def main():
                             if zip_file_path:
                                 st.success(f"Successfully zipped processed {zip_file_path}")
 
-                                # Save zip file to a temporary location
-                                temp_zip_path = upload_to_temp(zip_file_path)
+                                # Upload zip file to Google Drive and get the shareable link
+                                credentials = service_account.Credentials.from_service_account_file('credentials.json', scopes=['https://www.googleapis.com/auth/drive.file'])
+                                drive_link = upload_to_drive(zip_file_path, credentials)
 
-                                if temp_zip_path:
-                                    st.success("File saved to temporary directory successfully!")
-                                    st.markdown(f"[Download processed images from temporary directory]({temp_zip_path})")
+                                if drive_link:
+                                    st.success("File uploaded to Google Drive successfully!")
+                                    st.markdown(f"[Download processed images from Google Drive]({drive_link})")
 
                     except Exception as e:
                         st.error(f"An error occurred: {e}")
                         st.error(traceback.format_exc())  # Print detailed error traceback for debugging
-
 
 if __name__ == '__main__':
     main()
