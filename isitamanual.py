@@ -18,9 +18,6 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import paramiko
 
-# Set the timezone to UTC+7 Jakarta
-JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
-
 st.title('Image Captioning and Tagging')
 
 # File uploader for images
@@ -53,11 +50,13 @@ if uploaded_file is not None:
 
                 # Generate caption
                 caption_response = model.generate_content({"parts": [{"text": "Write a caption for this image in English"}]})
-                caption = caption_response.contents[0].text if caption_response.contents else "No caption generated."
+                st.write("Caption Response Debugging:", caption_response)  # Debug response
+                caption = caption_response  # Replace with correct attribute once identified
 
                 # Generate tags
                 tags_response = model.generate_content({"parts": [{"text": "Generate 5 hashtags for this image"}]})
-                tags = tags_response.contents[0].text if tags_response.contents else "No tags generated."
+                st.write("Tags Response Debugging:", tags_response)  # Debug response
+                tags = tags_response  # Replace with correct attribute once identified
 
                 # Display the image and results
                 st.image(img, caption=f"Caption: {caption}")
