@@ -1,22 +1,7 @@
 import streamlit as st
 import os
-import tempfile
 from PIL import Image
 import google.generativeai as genai
-import iptcinfo3
-import zipfile
-import time
-import traceback
-import re
-import unicodedata
-from datetime import datetime, timedelta
-import pytz
-import json
-import unicodedata
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-import paramiko
 
 st.title('Image Captioning and Tagging')
 
@@ -50,13 +35,11 @@ if uploaded_file is not None:
 
                 # Generate caption
                 caption_response = model.generate_content({"parts": [{"text": "Write a caption for this image in English"}]})
-                st.write("Caption Response Debugging:", caption_response)  # Debug response
-                caption = caption_response  # Replace with correct attribute once identified
+                caption = caption_response.result.candidates[0].content.parts[0].text
 
                 # Generate tags
                 tags_response = model.generate_content({"parts": [{"text": "Generate 5 hashtags for this image"}]})
-                st.write("Tags Response Debugging:", tags_response)  # Debug response
-                tags = tags_response  # Replace with correct attribute once identified
+                tags = tags_response.result.candidates[0].content.parts[0].text
 
                 # Display the image and results
                 st.image(img, caption=f"Caption: {caption}")
