@@ -2,40 +2,49 @@ import os
 import streamlit as st
 import google.generativeai as genai
 
-# Configuring the API key securely
-api_key = os.environ.get("AIzaSyDboqGrsG04ifpcwvDoXuylYKJKnPFFptk")
+# Konfigurasi API key
+api_key = os.getenv("AIzaSyDboqGrsG04ifpcwvDoXuylYKJKnPFFptk")
+if not api_key:
+    st.error("GEMINI_API_KEY tidak ditemukan. Pastikan variabel lingkungan sudah diset.")
+    st.stop()
 
 genai.configure(api_key=api_key)
 
-# Generation configuration
+# Konfigurasi model
 generation_config = {
     "temperature": 1,
     "top_p": 0.95,
     "top_k": 40,
     "max_output_tokens": 8192,
+    "response_mime_type": "text/plain",
 }
 
-# Streamlit app header
-st.title("Generative AI Chat with Gemini")
-st.write("Powered by Google Generative AI")
+try:
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        generation_config=generation_config,
+    )
 
-# User input
-user_input = st.text_area("Enter your message here:", placeholder="Type your input...")
+    chat_session = model.start_chat(history=[])
+except Exception as e:
+    st.error(f"Gagal menginisialisasi model: {e}")
+    st.stop()
 
-# Send button
-if st.button("Send"):
-    if user_input.strip() == "":
-        st.warning("Please enter a valid input.")
+# Antarmuka Streamlit
+st.title("Gemini Chatbot dengan Streamlit")
+st.write("Masukkan teks Anda dan dapatkan respons dari model Gemini.")
+
+# Input dari pengguna
+user_input = st.text_input("Masukkan teks Anda:")
+
+if st.button("Kirim"):
+    if user_input.strip():
+        with st.spinner("Sedang memproses..."):
+            try:
+                response = chat_session.send_message(user_input)
+                st.success("Respons dari model:")
+                st.write(response.text)
+            except Exception as e:
+                st.error(f"Terjadi kesalahan saat mengirim pesan: {e}")
     else:
-        try:
-            # Generate a response
-            response = genai.generate_text(
-                prompt=user_input,
-                **generation_config
-            )
-            
-            # Display the response
-            st.subheader("Response:")
-            st.write(response.text)
-        except Exception as e:
-            st.error(f"An error occurred: {e}")
+        st.warning("Input tidak boleh kosong.")
