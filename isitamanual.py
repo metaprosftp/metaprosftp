@@ -4,9 +4,6 @@ import google.generativeai as genai
 
 # Konfigurasi API key
 api_key = os.getenv("AIzaSyDboqGrsG04ifpcwvDoXuylYKJKnPFFptk")
-if not api_key:
-    st.error("GEMINI_API_KEY tidak ditemukan. Pastikan variabel lingkungan sudah diset.")
-    st.stop()
 
 genai.configure(api_key=api_key)
 
