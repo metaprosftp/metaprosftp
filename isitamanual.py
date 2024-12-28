@@ -1,35 +1,34 @@
+from google.cloud import vision
 import streamlit as st
-import google.generativeai as genai
 from PIL import Image
 
-# Ganti dengan API key Anda
-genai.configure(api_key="AIzaSyDboqGrsG04ifpcwvDoXuylYKJKnPFFptk")
+def generate_tags_with_vision(image_path):
+    client = vision.ImageAnnotatorClient()
 
-def generate_tags(image_path):
-  with open(image_path, "rb") as image_file:
-    image = image_file.read()
-  response = genai.generate_text(
-      model="gemini-pro",
-      prompt="Describe this image:",
-      image=image
-  )
-  return response.text
+    with open(image_path, "rb") as image_file:
+        content = image_file.read()
+
+    image = vision.Image(content=content)
+    response = client.label_detection(image=image)
+    labels = response.label_annotations
+    tags = [label.description for label in labels]
+    return tags
 
 def main():
-  st.title("Image Tagger")
+    st.title("Image Tagger")
 
-  uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("Choose an image file", type=["jpg", "jpeg", "png"])
 
-  if uploaded_file is not None:
-    image = Image.open(uploaded_file)
-    st.image(image, caption="Uploaded Image")
+    if uploaded_file is not None:
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Uploaded Image")
 
-    if st.button("Generate Tags"):
-      image_path = "temp.jpg"  # Simpan gambar sementara
-      image.save(image_path)
-      tags = generate_tags(image_path)
-      st.text("Tags:")
-      st.text(tags)
+        if st.button("Generate Tags"):
+            image_path = "temp.jpg"  # Save the image temporarily
+            image.save(image_path)
+            tags = generate_tags_with_vision(image_path)
+            st.text("Tags:")
+            st.text(", ".join(tags))
 
 if __name__ == "__main__":
-  main()
+    main()
