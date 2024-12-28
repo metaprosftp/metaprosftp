@@ -5,7 +5,7 @@ import google.generativeai as genai
 # Configuring the API key securely
 api_key = os.environ.get("AIzaSyDboqGrsG04ifpcwvDoXuylYKJKnPFFptk")
 if not api_key:
-    st.error("API key not found. Please set the 'GENAI_API_KEY' environment variable.")
+    st.error("API key not found. Please set the 'AIzaSyDboqGrsG04ifpcwvDoXuylYKJKnPFFptk' environment variable.")
     st.stop()
 
 genai.configure(api_key=api_key)
