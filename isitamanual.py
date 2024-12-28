@@ -242,7 +242,7 @@ def main():
                             # Save the uploaded images to the temporary directory
                             image_paths = []
                             for file in valid_files:
-                                temp_image_path = os.path.join(temp_dir, file.name)
+                                temp_image_path = os.path.join(temp_dir, file.name)  # Save the image to the temp directory
                                 with open(temp_image_path, 'wb') as f:
                                     f.write(file.read())
                                 image_paths.append(temp_image_path)
