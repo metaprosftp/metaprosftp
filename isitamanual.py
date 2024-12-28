@@ -2,25 +2,80 @@ import streamlit as st
 import os
 import tempfile
 from PIL import Image
+import google.generativeai as genai
 import iptcinfo3
 import zipfile
 import time
 import traceback
+import re
 import unicodedata
+from datetime import datetime, timedelta
 import pytz
-from datetime import datetime
+import json
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+
+st.set_option("client.showSidebarNavigation", False)
+
+
+# Apply custom styling
+st.markdown("""
+    <style>
+        #MainMenu, header, footer {
+            visibility: hidden;
+        }
+        section[data-testid="stSidebar"] {
+            top: 0;
+            height: 10vh;
+        }
+    </style>
+""", unsafe_allow_html=True)
 
 # Set the timezone to UTC+7 Jakarta
 JAKARTA_TZ = pytz.timezone('Asia/Jakarta')
 
+# Initialize session state for license validation
+if 'license_validated' not in st.session_state:
+    st.session_state['license_validated'] = False
+
+if 'upload_count' not in st.session_state:
+    st.session_state['upload_count'] = {
+        'date': None,
+        'count': 0
+    }
+
+if 'api_key' not in st.session_state:
+    st.session_state['api_key'] = None
+
+# Function to normalize and clean text
 def normalize_text(text):
-    """Normalize and clean text."""
     normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
     return normalized
 
-def embed_metadata(image_path, metadata, new_filename):
-    """Embed metadata into the image and rename it."""
+# Function to generate metadata for images using AI model
+def generate_metadata(model, img):
+    caption = model.generate_content(["Create a descriptive title in English, up to 12 words long, that identifies the main elements of the image. Highlight the primary subjects, objects, activities, and context. Refine the title to include relevant keywords for SEO, ensuring it is engaging and informative. Avoid mentioning human names, brand names, product names, or company names.", img])
+    tags = model.generate_content(["Generate up to 45 keywords in English that are relevant to the image (each keyword must be one word, separated by commas). Ensure each keyword is a single word, separated by commas.", img])
+
+    # Filter out undesirable characters from the generated tags
+    filtered_tags = re.sub(r'[^\w\s,]', '', tags.text)
+
+    # Trim the generated keywords if they exceed 49 words
+    keywords = filtered_tags.split(',')[:49]  # Limit to 49 words
+    trimmed_tags = ','.join(keywords)
+
+    return {
+        'Title': caption.text.strip(),  # Remove leading/trailing whitespace
+        'Tags': trimmed_tags.strip()
+    }
+
+# Function to embed metadata into images
+def embed_metadata(image_path, metadata, progress_bar, files_processed, total_files):
     try:
+        # Simulate delay
+        time.sleep(1)
+
         # Open the image file
         img = Image.open(image_path)
 
@@ -32,83 +87,207 @@ def embed_metadata(image_path, metadata, new_filename):
             iptc_data._data[tag] = []
 
         # Update IPTC data with new metadata
-        iptc_data['keywords'] = [metadata.get('Tags', '')]
-        iptc_data['caption/abstract'] = [metadata.get('Title', '')]
+        iptc_data['keywords'] = [metadata.get('Tags', '')]  # Keywords
+        iptc_data['caption/abstract'] = [metadata.get('Title', '')]  # Title
 
-        # Save the image with embedded metadata
+        # Save the image with the embedded metadata
         iptc_data.save()
 
-        # Rename the file
-        renamed_path = os.path.join(os.path.dirname(image_path), new_filename)
-        os.rename(image_path, renamed_path)
+        # Update progress bar
+        files_processed += 1
+        progress_bar.progress(files_processed / total_files)
+        progress_bar.text(f"Embedding metadata for image {files_processed}/{total_files}")
 
-        return renamed_path
+        # Return the updated image path for further processing
+        return image_path
+
     except Exception as e:
         st.error(f"An error occurred while embedding metadata: {e}")
+        st.error(traceback.format_exc())  # Print detailed error traceback for debugging
+
+# Function to zip processed images
+def zip_processed_images(image_paths):
+    try:
+        zip_file_path = os.path.join(tempfile.gettempdir(), 'processed_images.zip')
+
+        with zipfile.ZipFile(zip_file_path, 'w') as zipf:
+            for image_path in image_paths:
+                zipf.write(image_path, arcname=os.path.basename(image_path))
+
+        return zip_file_path
+    except Exception as e:
+        st.error(f"An error occurred while zipping images: {e}")
         st.error(traceback.format_exc())
+        return None
+
+# Function to save zip file to a temporary directory
+def upload_to_temp(zip_file_path):
+    try:
+        # Just save the zip file to the temp directory
+        temp_directory = tempfile.gettempdir()
+        temp_zip_path = os.path.join(temp_directory, 'processed_images.zip')
+
+        # Move the file to the temporary directory
+        os.rename(zip_file_path, temp_zip_path)
+
+        return temp_zip_path
+    except Exception as e:
+        st.error(f"An error occurred while saving to temporary directory: {e}")
+        st.error(traceback.format_exc())
+        return None
 
 def main():
     """Main function for the Streamlit app."""
-    st.title("Image Captioning and Metadata Editor")
 
-    # Toggle workflow
-    workflow = st.radio("Choose a workflow:", options=["Metadata Embedding", "AI Captioning"], horizontal=True)
+    # Display WhatsApp chat link
+    st.markdown("""<div style="text-align: center; margin-top: 20px;">
+        <a href="https://wa.me/6285328007533" target="_blank">
+            <button style="background-color: #1976d2; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                MetaPro
+            </button>
+        </a>
+    </div>""", unsafe_allow_html=True)
 
-    if workflow == "Metadata Embedding":
-        title_input = st.text_input("Enter Title for Images")
-        tags_input = st.text_area("Enter Tags (comma-separated)")
+    # Check if license has already been validated
+    license_file = "license.txt"
+    if not st.session_state['license_validated']:
+        if os.path.exists(license_file):
+            with open(license_file, 'r') as file:
+                start_date_str = file.read().strip()
+                start_date = datetime.fromisoformat(start_date_str)
+                st.session_state['license_validated'] = True
+        else:
+            # License key input
+            validation_key = st.text_input('License Key', type='password')
 
-        uploaded_files = st.file_uploader("Upload Images (JPG/JPEG only)", accept_multiple_files=True, type=["jpg", "jpeg"])
+        # Check if validation key is correct
+        correct_key = "dian12345"
 
-        if uploaded_files and title_input and tags_input:
-            if st.button("Process Images"):
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    image_paths = []
-                    for file in uploaded_files:
-                        temp_image_path = os.path.join(temp_dir, file.name)
-                        with open(temp_image_path, 'wb') as f:
-                            f.write(file.read())
-                        image_paths.append(temp_image_path)
+        if not st.session_state['license_validated'] and validation_key:
+            if validation_key == correct_key:
+                st.session_state['license_validated'] = True
+                start_date = datetime.now(JAKARTA_TZ)
+                with open(license_file, 'w') as file:
+                    file.write(start_date.isoformat())
+            else:
+                st.error("Invalid validation key. Please enter the correct key.")
 
-                    processed_files = []
-                    for idx, image_path in enumerate(image_paths):
-                        metadata = {'Title': normalize_text(title_input), 'Tags': normalize_text(tags_input)}
-                        new_filename = f"{normalize_text(title_input)}_{idx + 1}.jpg"
-                        updated_image_path = embed_metadata(image_path, metadata, new_filename)
-                        if updated_image_path:
-                            processed_files.append(updated_image_path)
+    if st.session_state['license_validated']:
+        # Check the license file for the start date
+        with open(license_file, 'r') as file:
+            start_date_str = file.read().strip()
+            start_date = datetime.fromisoformat(start_date_str)
 
-                    # Zip processed files
-                    zip_filename = os.path.join(temp_dir, "processed_images.zip")
-                    with zipfile.ZipFile(zip_filename, 'w') as zipf:
-                        for file_path in processed_files:
-                            zipf.write(file_path, os.path.basename(file_path))
+        # Calculate the expiration date
+        expiration_date = start_date + timedelta(days=91)
+        current_date = datetime.now(JAKARTA_TZ)
 
-                    with open(zip_filename, "rb") as f:
-                        st.download_button("Download Processed Images", f, "processed_images.zip", "application/zip")
-                    st.success(f"Processed {len(processed_files)} images successfully!")
+        if current_date > expiration_date:
+            st.error("Your license has expired. Please contact support for a new license key.")
+            return
+        else:
+            days_remaining = (expiration_date - current_date).days
+            st.success(f"License valid. You have {days_remaining} days remaining. Max 45 files per upload, unlimited daily uploads.")
 
-    elif workflow == "AI Captioning":
-        uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
-        api_key = st.text_input("Enter your API Key:", type="password")
+        # API Key input
+        api_key = st.text_input('Enter your [API](https://makersuite.google.com/app/apikey) Key', value=st.session_state['api_key'] or '')
 
-        if uploaded_file and api_key:
-            if st.button("Generate Caption and Tags"):
-                file_path = os.path.join("temp", uploaded_file.name)
-                os.makedirs("temp", exist_ok=True)
-                with open(file_path, "wb") as f:
-                    f.write(uploaded_file.getvalue())
-                img = Image.open(file_path)
+        # Save API key in session state
+        if api_key:
+            st.session_state['api_key'] = api_key
 
-                try:
-                    genai.configure(api_key=api_key)
-                    model = genai.GenerativeModel('gemini-1.5-flash')  # Replace with appropriate model
-                    caption = model.generate_content(["Write a caption for the image in English.", img])
-                    tags = model.generate_content(["Generate 5 hashtags for the image in English.", img])
-                    st.image(img, caption=f"Caption: {caption.text}")
-                    st.write(f"Tags: {tags.text}")
-                except Exception as e:
-                    st.error(f"Error: {str(e)}")
+        # Upload image files
+        uploaded_files = st.file_uploader('Upload Images (Only JPG and JPEG Supported)', accept_multiple_files=True)
 
-if __name__ == "__main__":
+        if uploaded_files:
+            valid_files = [file for file in uploaded_files if file.type in ['image/jpeg', 'image/jpg']]
+            invalid_files = [file for file in uploaded_files if file not in valid_files]
+
+            if invalid_files:
+                st.error("Only JPG and JPEG files are supported.")
+
+            if valid_files and st.button("Process"):
+                with st.spinner("Processing..."):
+                    try:
+                        # Check and update upload count for the current date
+                        if st.session_state['upload_count']['date'] != current_date.date():
+                            st.session_state['upload_count'] = {
+                                'date': current_date.date(),
+                                'count': 0
+                            }
+
+                        # Check if remaining uploads are available
+                        if st.session_state['upload_count']['count'] + len(valid_files) > 1000:
+                            remaining_uploads = 1000 - st.session_state['upload_count']['count']
+                            st.warning(f"You have exceeded the upload limit. Remaining uploads for today: {remaining_uploads}")
+                            return
+                        else:
+                            st.session_state['upload_count']['count'] += len(valid_files)
+                            st.success(f"Uploads successful. Remaining uploads for today: {1000 - st.session_state['upload_count']['count']}")
+
+                        genai.configure(api_key=api_key)  # Configure AI model with API key
+                        model = genai.GenerativeModel('gemini-1.5-flash')
+
+                        # Create a temporary directory to store the uploaded images
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            # Save the uploaded images to the temporary directory
+                            image_paths = []
+                            for file in valid_files:
+                                temp_image_path = os.path.join(temp_dir, file.name)
+                                with open(temp_image_path, 'wb') as f:
+                                    f.write(file.read())
+                                image_paths.append(temp_image_path)
+
+                            # Process each image and generate titles and tags using AI
+                            metadata_list = []
+                            process_placeholder = st.empty()
+                            for i, image_path in enumerate(image_paths):
+                                process_placeholder.text(f"Processing Generate Titles and Tags {i + 1}/{len(image_paths)}")
+                                try:
+                                    img = Image.open(image_path)
+                                    metadata = generate_metadata(model, img)
+                                    metadata_list.append(metadata)
+                                except Exception as e:
+                                    st.error(f"An error occurred while generating metadata for {os.path.basename(image_path)}: {e}")
+                                    st.error(traceback.format_exc())
+                                    continue
+
+                            # Embed metadata into images
+                            total_files = len(image_paths)
+                            files_processed = 0
+
+                            # Display the progress bar and current file number
+                            progress_placeholder = st.empty()
+                            progress_bar = progress_placeholder.progress(0)
+                            progress_placeholder.text(f"Processing images 0/{total_files}")
+
+                            processed_image_paths = []
+                            for i, (image_path, metadata) in enumerate(zip(image_paths, metadata_list)):
+                                process_placeholder.text(f"Embedding metadata for image {i + 1}/{len(image_paths)}")
+                                updated_image_path = embed_metadata(image_path, metadata, progress_bar, files_processed, total_files)
+                                if updated_image_path:
+                                    processed_image_paths.append(updated_image_path)
+                                    files_processed += 1
+                                    # Update progress bar and current file number
+                                    progress_bar.progress(files_processed / total_files)
+
+                            # Zip processed images
+                            zip_file_path = zip_processed_images(processed_image_paths)
+
+                            if zip_file_path:
+                                st.success(f"Successfully zipped processed {zip_file_path}")
+
+                                # Save zip file to a temporary location
+                                temp_zip_path = upload_to_temp(zip_file_path)
+
+                                if temp_zip_path:
+                                    st.success("File saved to temporary directory successfully!")
+                                    st.markdown(f"[Download processed images from temporary directory]({temp_zip_path})")
+
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
+                        st.error(traceback.format_exc())  # Print detailed error traceback for debugging
+
+
+if __name__ == '__main__':
     main()
