@@ -18,8 +18,6 @@ from googleapiclient.http import MediaFileUpload
 
 st.set_option("client.showSidebarNavigation", False)
 
-# Redirect to app.py if not logged in, otherwise show the navigation menu
-menu_with_redirect()
 
 # Apply custom styling
 st.markdown("""
