@@ -8,7 +8,6 @@ import time
 import traceback
 import unicodedata
 import pytz
-import genai  # Assuming genai SDK is installed
 from datetime import datetime
 
 # Set the timezone to UTC+7 Jakarta
