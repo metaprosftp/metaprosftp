@@ -1,81 +1,41 @@
-import streamlit as st
 import os
-from PIL import Image
+import streamlit as st
 import google.generativeai as genai
 
-# App title
-st.title('Image Captioning and Tagging')
+# Konfigurasi API
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
-# File uploader for images
-uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "png", "jpeg"])
+# Konfigurasi model
+generation_config = {
+    "temperature": 1,
+    "top_p": 0.95,
+    "top_k": 40,
+    "max_output_tokens": 8192,
+    "response_mime_type": "text/plain",
+}
 
-# API Key input field
-API_KEY = st.text_input("Enter your API Key:", type="password", help="Get your Google API key from [here](https://makersuite.google.com/app/apikey)")
+# Inisialisasi model
+model = genai.GenerativeModel(
+    model_name="gemini-1.5-flash",
+    generation_config=generation_config,
+)
 
-# Process the uploaded image
-if uploaded_file is not None:
-    if st.button('Upload'):
-        if API_KEY.strip() == '':
-            st.error('Enter a valid API key')
-        else:
-            # Save the uploaded file temporarily
-            file_path = os.path.join("temp", uploaded_file.name)
-            os.makedirs("temp", exist_ok=True)  # Ensure the temp directory exists
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getvalue())
-            
-            # Open the image
-            img = Image.open(file_path)
+# Header aplikasi
+st.title("Generative AI Chat with Gemini")
+st.write("Powered by Google Generative AI")
 
-            try:
-                # Configure Generative AI with the API key
-                genai.configure(api_key=API_KEY)
-                model = genai.GenerativeModel('gemini-1.5-flash')
+# Input pengguna
+user_input = st.text_area("Enter your message here:", placeholder="Type your input...")
 
-                # Generate caption
-                caption_response = model.generate_content({"parts": [{"text": "Write a caption for this image in English"}]})
-                st.write("Caption Response Debug:", caption_response)  # Debug: check response structure
-                caption = caption_response.candidates[0].content.parts[0].text  # Extract caption text
-
-                # Generate tags
-                tags_response = model.generate_content({"parts": [{"text": "Generate 5 hashtags for this image"}]})
-                st.write("Tags Response Debug:", tags_response)  # Debug: check response structure
-                tags = tags_response.candidates[0].content.parts[0].text  # Extract tags text
-
-                # Display the image and results
-                st.image(img, caption=f"Caption: {caption}")
-                st.write(f"Tags: {tags}")
-            
-            except Exception as e:
-                st.error(f"An error occurred: {e}")
-            
-            finally:
-                # Cleanup the temp directory
-                os.remove(file_path)
-
-# Footer
-footer = """
-<style>
-    a:link, a:visited {
-        color: blue;
-        text-decoration: none;
-    }
-    a:hover, a:active {
-        color: skyblue;
-    }
-    .footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: black;
-        color: white;
-        text-align: center;
-        padding: 10px 0;
-    }
-</style>
-<div class="footer">
-    <p>Developed with ❤ by <a href="https://www.linkedin.com/in/sgvkamalakar" target="_blank">sgvkamalakar</a></p>
-</div>
-"""
-st.markdown(footer, unsafe_allow_html=True)
+# Tombol untuk mengirim pesan
+if st.button("Send"):
+    if user_input.strip() == "":
+        st.warning("Please enter a valid input.")
+    else:
+        # Mulai sesi chat
+        chat_session = model.start_chat(history=[])
+        response = chat_session.send_message(user_input)
+        
+        # Tampilkan hasil
+        st.subheader("Response:")
+        st.write(response.text)
