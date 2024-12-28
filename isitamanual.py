@@ -3,6 +3,7 @@ import os
 from PIL import Image
 import google.generativeai as genai
 
+# App title
 st.title('Image Captioning and Tagging')
 
 # File uploader for images
@@ -26,31 +27,31 @@ if uploaded_file is not None:
             # Open the image
             img = Image.open(file_path)
 
-            # Configure Generative AI with the new API key
             try:
+                # Configure Generative AI with the new API key
                 genai.configure(api_key=API_KEY)
-                
-                # Use the updated model for generating content
                 model = genai.GenerativeModel('gemini-1.5-flash')
 
                 # Generate caption
                 caption_response = model.generate_content({"parts": [{"text": "Write a caption for this image in English"}]})
-                caption = caption_response.result.candidates[0].content.parts[0].text
+                st.write("Caption Response Debug:", caption_response)  # Debug: check response structure
+                caption = caption_response.candidates[0].text  # Adjust according to response structure
 
                 # Generate tags
                 tags_response = model.generate_content({"parts": [{"text": "Generate 5 hashtags for this image"}]})
-                tags = tags_response.result.candidates[0].content.parts[0].text
+                st.write("Tags Response Debug:", tags_response)  # Debug: check response structure
+                tags = tags_response.candidates[0].text  # Adjust according to response structure
 
                 # Display the image and results
                 st.image(img, caption=f"Caption: {caption}")
                 st.write(f"Tags: {tags}")
             
             except Exception as e:
-                error_msg = str(e)
-                st.error(f"An error occurred: {error_msg}")
+                st.error(f"An error occurred: {e}")
             
-            # Cleanup the temp directory
-            os.remove(file_path)
+            finally:
+                # Cleanup the temp directory
+                os.remove(file_path)
 
 # Footer
 footer = """
