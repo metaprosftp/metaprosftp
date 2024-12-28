@@ -53,11 +53,11 @@ if uploaded_file is not None:
 
                 # Generate caption
                 caption_response = model.generate_content({"parts": [{"text": "Write a caption for this image in English"}]})
-                caption = caption_response.result if caption_response else "No caption generated."
+                caption = caption_response.contents[0].text if caption_response.contents else "No caption generated."
 
                 # Generate tags
                 tags_response = model.generate_content({"parts": [{"text": "Generate 5 hashtags for this image"}]})
-                tags = tags_response.result if tags_response else "No tags generated."
+                tags = tags_response.contents[0].text if tags_response.contents else "No tags generated."
 
                 # Display the image and results
                 st.image(img, caption=f"Caption: {caption}")
