@@ -28,19 +28,19 @@ if uploaded_file is not None:
             img = Image.open(file_path)
 
             try:
-                # Configure Generative AI with the new API key
+                # Configure Generative AI with the API key
                 genai.configure(api_key=API_KEY)
                 model = genai.GenerativeModel('gemini-1.5-flash')
 
                 # Generate caption
                 caption_response = model.generate_content({"parts": [{"text": "Write a caption for this image in English"}]})
                 st.write("Caption Response Debug:", caption_response)  # Debug: check response structure
-                caption = caption_response.candidates[0].text  # Adjust according to response structure
+                caption = caption_response.candidates[0].content.parts[0].text  # Extract caption text
 
                 # Generate tags
                 tags_response = model.generate_content({"parts": [{"text": "Generate 5 hashtags for this image"}]})
                 st.write("Tags Response Debug:", tags_response)  # Debug: check response structure
-                tags = tags_response.candidates[0].text  # Adjust according to response structure
+                tags = tags_response.candidates[0].content.parts[0].text  # Extract tags text
 
                 # Display the image and results
                 st.image(img, caption=f"Caption: {caption}")
