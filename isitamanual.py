@@ -49,12 +49,19 @@ if 'api_key' not in st.session_state:
 # Function to normalize and clean text
 def normalize_text(text):
     normalized = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore').decode('utf-8')
-    return normalized
+    sanitized = re.sub(r'[\\/:*?"<>|]', '', normalized)  # Remove characters not allowed in filenames
+    return sanitized
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
-    caption = model.generate_content(["Help create a specific, descriptive, and informative title for an image. The title should clearly describe the context, subject, and atmosphere of the scene, make the result into 1 line or answer only", img])
-    tags = model.generate_content(["Generate 49 keywords in one line, separated by commas, based on an image. Ensure the first 5 keywords are the most relevant to the image, followed by related terms that describe the context, subject, and details of the scene, each keyword is a single word.", img])
+    caption = model.generate_content([
+        "Help create a specific, descriptive, and informative title for an image. The title should clearly describe the context, subject, and atmosphere of the scene, make the result into 1 line or answer only", 
+        img
+    ])
+    tags = model.generate_content([
+        "Generate 49 keywords in one line, separated by commas, based on an image. Ensure the first 5 keywords are the most relevant to the image, followed by related terms that describe the context, subject, and details of the scene, each keyword is a single word.", 
+        img
+    ])
 
     # Filter out undesirable characters from the generated tags
     filtered_tags = re.sub(r'[^\w\s,]', '', tags.text)
@@ -91,13 +98,19 @@ def embed_metadata(image_path, metadata, progress_bar, files_processed, total_fi
         # Save the image with the embedded metadata
         iptc_data.save()
 
+        # Rename the file based on the generated title
+        directory, original_filename = os.path.split(image_path)
+        title = normalize_text(metadata['Title'])
+        new_filename = f"{title}.jpg"
+        new_image_path = os.path.join(directory, new_filename)
+        os.rename(image_path, new_image_path)
+
         # Update progress bar
         files_processed += 1
         progress_bar.progress(files_processed / total_files)
-        progress_bar.text(f"Embedding metadata for image {files_processed}/{total_files}")
+        progress_bar.text(f"Embedding metadata and renaming image {files_processed}/{total_files}")
 
-        # Return the updated image path for further processing
-        return image_path
+        return new_image_path
 
     except Exception as e:
         st.error(f"An error occurred while embedding metadata: {e}")
