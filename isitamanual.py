@@ -54,8 +54,14 @@ def normalize_text(text):
 
 # Function to generate metadata for images using AI model
 def generate_metadata(model, img):
-    caption = model.generate_content(["Help create a specific, descriptive, and informative title for an image. The title should clearly describe the context, subject, and atmosphere of the scene, make the result into 1 line or answer only", img])
-    tags = model.generate_content(["Generate 49 keywords in one line, separated by commas, based on an image. Ensure the first 5 keywords are the most relevant to the image, followed by related terms that describe the context, subject, and details of the scene, each keyword is a single word.", img])
+    caption = model.generate_content([
+        "Help create a specific, descriptive, and informative title for an image. The title should clearly describe the context, subject, and atmosphere of the scene, make the result into 1 line or answer only", 
+        img
+    ])
+    tags = model.generate_content([
+        "Generate 49 keywords in one line, separated by commas, based on an image. Ensure the first 5 keywords are the most relevant to the image, followed by related terms that describe the context, subject, and details of the scene, each keyword is a single word.", 
+        img
+    ])
 
     # Filter out undesirable characters from the generated tags
     filtered_tags = re.sub(r'[^\w\s,]', '', tags.text)
@@ -74,6 +80,9 @@ def embed_metadata(image_path, metadata, progress_bar, files_processed, total_fi
     try:
         # Simulate delay
         time.sleep(1)
+
+        # Open the image file
+        img = Image.open(image_path)
 
         # Load existing IPTC data (if any)
         iptc_data = iptcinfo3.IPTCInfo(image_path, force=True)
@@ -232,7 +241,8 @@ def main():
                             for i, image_path in enumerate(image_paths):
                                 process_placeholder.text(f"Processing Generate Titles and Tags {i + 1}/{len(image_paths)}")
                                 try:
-                                    metadata = generate_metadata(model, image_path)
+                                    img = Image.open(image_path)
+                                    metadata = generate_metadata(model, img)
                                     metadata_list.append(metadata)
                                 except Exception as e:
                                     st.error(f"An error occurred while generating metadata for {os.path.basename(image_path)}: {e}")
