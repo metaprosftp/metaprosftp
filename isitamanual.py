@@ -81,9 +81,6 @@ def embed_metadata(image_path, metadata, progress_bar, files_processed, total_fi
         # Simulate delay
         time.sleep(1)
 
-        # Open the image file
-        img = Image.open(image_path)
-
         # Load existing IPTC data (if any)
         iptc_data = iptcinfo3.IPTCInfo(image_path, force=True)
 
@@ -241,8 +238,7 @@ def main():
                             for i, image_path in enumerate(image_paths):
                                 process_placeholder.text(f"Processing Generate Titles and Tags {i + 1}/{len(image_paths)}")
                                 try:
-                                    img = Image.open(image_path)
-                                    metadata = generate_metadata(model, img)
+                                    metadata = generate_metadata(model, image_path)
                                     metadata_list.append(metadata)
                                 except Exception as e:
                                     st.error(f"An error occurred while generating metadata for {os.path.basename(image_path)}: {e}")
